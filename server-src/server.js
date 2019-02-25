@@ -1,13 +1,9 @@
 var http = require('http');
 var util = require('util');
 var spawnSync = require('child_process').spawnSync;
+var config = require('./config.js');
 
-
-const PORT = 8080;
-const BOT_NAME = "highfive";
-const PEOPLE = [
-    "GuillaumeGomez",
-];
+var DOC_UI_RUNS = {};
 
 function get_status(response) {
     response.end('All good here!');
@@ -45,8 +41,8 @@ function update_repository() {
 
 function check_rights(login) {
     let login = login.toLowerCase();
-    for (let i = 0; i < PEOPLE.length; ++i) {
-        if (login === PEOPLE[i].toLowerCase()) {
+    for (let i = 0; i < config.PEOPLE.length; ++i) {
+        if (login === config.PEOPLE[i].toLowerCase()) {
             return true;
         }
     }
@@ -65,35 +61,49 @@ function github_event(response, request, server) {
         try {
             let content = JSON.parse(Buffer.concat(body).toString());
 
-            if (update_repository() === false) {
-                response.end("Couldn't update repository...")
+            if (content['action'] === 'deleted') {
                 return;
             }
-            if (check_rights(content['comment']['user']['login']) === false) {
-                console.log('github_event: missing rights for ' + content['comment']['user']['login']);
-                return;
-            }
+
             let msg = content['comment']['body'].split("\n");
+            let run_doc_ui = false;
+            let need_restart = false;
             for (let i = 0; i < msg.length; ++i) {
-                if (line.trim().startsWith("@" + BOT_NAME) === false) {
+                if (line.trim().startsWith("@" + config.BOT_NAME) === false) {
                     continue;
                 }
                 let parts = line.split(" ").filter(w => w.length > 0).slice(1);
                 for (var x = 0; x < parts.length; ++x) {
-                    if (parts[x].toLowerCase() === "restart") {
-                        restart(response, request, server);
-                        return;
-                    } else if (parts[x] === "run-doc-ui") {
-                        ;
+                    let cmd = parts[x].toLowerCase();
+                    if (cmd === "run-doc-ui") {
+                        run_doc_ui = true;
+                    } else if (cmd === "restart") {
+                        need_restart = true;
+                    } else {
+                        // we ignore the rest.
                     }
                 }
             }
+            if ((need_restart === true || run_doc_ui === true) && 
+                    check_rights(content['comment']['user']['login']) === false) {
+                console.log('github_event: missing rights for ' + content['comment']['user']['login']);
+                return;
+            }
+            if (need_restart === true) {
+                if (update_repository() === false) {
+                    response.end("Couldn't update repository...")
+                } else {
+                    restart(response, request, server);
+                    response.end("ok");
+                }
+                return;
+            }
+            if (run_doc_ui === true) {
+                // We wait for the rustdoc build to end before trying to get it.
+                DOC_UI_RUNS[content['issue']['url']] = false;
+            }
 
-            // At this point, we have the headers, method, url and body, and can now
-            // do whatever we need to in order to respond to this request.
             response.statusCode = 200;
-            response.setHeader('Content-Type', 'application/json');
-            response.write(JSON.stringify({'status': 'ok'}));
             response.end();
         } catch (e) {
             console.error('github_event: ', e);
@@ -115,5 +125,5 @@ var server = http.createServer((request, response) => {
         unknown_url(response, request);
     }
 });
-server.listen(PORT);
-console.log("server started on 0.0.0.0:" + PORT);
+server.listen(config.PORT);
+console.log("server started on 0.0.0.0:" + config.PORT);
