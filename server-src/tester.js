@@ -12,15 +12,17 @@ const puppeteer = require('puppeteer');
 const fs = require('fs');
 const execFileSync = require('child_process').execFileSync;
 const PNG = require('png-js');
+const parser = require('./parser.js');
+const spawnSync = require('child_process').spawnSync;
 
-const TEST_FOLDER = 'src/test/doc-ui/';
+const TEST_FOLDER = 'ui-tests/';
 
 
 function loadContent(content) {
     var Module = module.constructor;
     var m = new Module();
-    m._compile(content, "tmp.js");
-    return m.exports;
+    m._compile(`async function f(page){ return ${content}; } module.exports.f = f;`, "tmp.js");
+    return m.exports.f;
 }
 
 function readFile(filePath) {
@@ -31,112 +33,167 @@ function comparePixels(img1, img2) {
     return img1.equals(img2);
 }
 
-function main(argv) {
-    /*if (argv.length !== 4) {
-        console.error("Expected 2 arguments, received " + (argv.length - 2) + ":");
-        console.error(" - first argument : toolchain to check as argument (for example " +
-                      "'x86_64-apple-darwin')");
-        console.error(" - second argument: browser path (chrome or chromium)");
-        process.exitCode = 1; // exiting
-    }*/
-    var toolchain = argv[2];
-    var stage = argv[3];
+function appendLog(logs, newLog, noBackline) {
+    if (logs.length === 0 || noBackline === true) {
+        return `${logs}${newLog}`;
+    }
+    return `${logs}\n${newLog}`;
+}
 
-    if (stage != "0" && stage != "1" && stage != "2") {
-        console.error("second argument (stage) should be either '0', '1' or '2'");
-        process.exitCode = 1; // exiting
+function addSlash(s) {
+    if (!s.endsWith('/')) {
+        return s + '/';
+    }
+    return s;
+}
+
+function removeFolder(folderPath) {
+    try {
+        const upper = spawnSync('rm', ['-rf', folderPath]);
+        let stdout = upper.stdout.toString().trim();
+        let stderr = upper.stderr.toString().trim();
+    } catch (e) {
+        return {"error": e.toString()};
+    }
+    return {};
+}
+
+async function main(argv) {
+    var logs = "";
+
+    if (argv.length < 4) {
+        return ["tester [RUSTDOC PATH] [ID] [--generate-images (optional)]", 1];
     }
 
-    var browserPath = undefined;
-
-    if (argv.length > 4) {
-        browserPath = argv[4];
-        try {
-            fs.accessSync(browserPath, fs.constants.X_OK);
-        } catch (err) {
-            console.error('"' + browserPath + '" is not executable! Aborting.');
-            process.exitCode = 2; // exiting
-        }
+    const rustdocPath = argv[2];
+    var currentDir = addSlash(__dirname);
+    if (currentDir.endsWith("server-src/")) {
+        currentDir = addSlash(currentDir.substr(0, currentDir.length - "server-src/".length));
+    }
+    const outPath = currentDir + addSlash(argv[3]);
+    const runId = argv[3];
+    const docPath = outPath + "lib/";
+    var generateImages = false;
+    if (argv.length >= 5) {
+        generateImages = argv[4] === "--generate-images"; // TODO improve arguments parsing
+    }
+    try {
+        execFileSync(rustdocPath, ["test-docs/src/lib.rs", "-o", outPath]);
+    } catch (err) {
+        return ["=== STDERR ===\n" + err.stderr + "\n\n=== STDOUT ===\n" + err.stdout, 1];
     }
 
-    var outPath = "build/" + toolchain + "/stage" + stage;
-    execFileSync(outPath + "/bin/rustdoc",
-                 ["src/test/doc-ui/lib/lib.rs", "-o", outPath + "/doc-ui"], {},
-                 function(error, stdout, stderr) {
-        if (error) {
-            console.error(error);
-            process.exitCode = 1; // exiting
-        }
-    });
-
-    var imageFolder = outPath + "/doc-ui/images/";
-    fs.mkdir(imageFolder, function() {});
-
-    console.log("=> Starting doc-ui tests...");
+    logs = "=> Starting doc-ui tests...";
 
     var loaded = [];
     var failures = 0;
-    var output = [];
     fs.readdirSync(TEST_FOLDER).forEach(function(file) {
         var fullPath = TEST_FOLDER + file;
-        if (file.endsWith(".js") && fs.lstatSync(fullPath).isFile()) {
-            var content = readFile(fullPath) + 'exports.TEST = TEST;';
-            loaded.push([file, loadContent(content).TEST]);
+        if (file.endsWith(".gom") && fs.lstatSync(fullPath).isFile()) {
+            var commands = parser.parseContent(readFile(fullPath));
+            if (commands.hasOwnProperty("error")) {
+                logs = appendLog(logs, file.substr(0, file.length - 4) + "... FAILED");
+                logs = appendLog(logs, `[line ${commands[i]["line"]}: ${commands[i]["error"]}`);
+                return;
+            }
+            if (commands["instructions"].length === 0) {
+                logs = appendLog(logs, file.substr(0, file.length - 4) + "... FAILED");
+                logs = appendLog(logs, "No command to execute");
+                return;
+            }
+            loaded.push({"file": file.substr(0, file.length - 4), "commands": commands["instructions"]});
         }
     });
 
-    puppeteer.launch({executablePath: browserPath}).then(async browser => {
-        var docPath = 'file://' + process.cwd() + '/' + outPath + '/doc-ui/lib/';
-        for (var i = 0; i < loaded.length; ++i) {
-            process.stdout.write(loaded[i][0] + "... ");
-            try {
-                if (!('path' in loaded[i][1])) {
-                    failures += 1;
-                    console.log('FAILED (missing "path" key from test file)');
-                    continue;
-                }
-                if (typeof loaded[i][1]['path'] !== "string" || loaded[i][1]['path'].length < 1) {
-                    failures += 1;
-                    console.log('FAILED (invalid "path" key from test file)');
-                    continue;
-                }
-                const page = await browser.newPage();
-                await page.goto(docPath + loaded[i][1]['path']);
-                await page.waitFor(5000);
-                var newImage = imageFolder + loaded[i][0].replace(".js", ".png");
-                await page.screenshot({
-                    path: newImage,
-                    fullPage: true,
+    if (loaded.length === 0) {
+        return [logs, failures];
+    }
+
+    var error_log;
+    const browser = await puppeteer.launch();
+    for (var i = 0; i < loaded.length; ++i) {
+        logs = appendLog(logs, loaded[i]["file"] + "... ");
+        const page = await browser.newPage();
+        try {
+            await page.goto('file://' + docPath + "index.html");
+
+            error_log = "";
+            const commands = loaded[i]["commands"];
+            for (var x = 0; x < commands.length; ++x) {
+                await loadContent(commands[x])(page).catch(err => {
+                    error_log = err.toString();
                 });
-                var originalImage = TEST_FOLDER + "images/" + loaded[i][0].replace(".js", ".png");
-                if (fs.existsSync(originalImage) === false) {
-                    console.log('ignored ("' + originalImage + '" not found)');
-                    continue;
-                }
-                if (comparePixels(PNG.load(newImage).imgData,
-                                  PNG.load(originalImage).imgData) === false) {
+                if (error_log.length > 0) {
                     failures += 1;
-                    console.log('FAILED (images "' + newImage + '" and "' + originalImage +
-                                '" are different)');
-                    continue;
+                    logs = appendLog(logs, 'FAILED', true);
+                    logs = appendLog(logs, error_log);
+                    break;
                 }
-            } catch (err) {
-                failures += 1;
-                console.log("FAILED");
-                output.push(loaded[i][0] + " output:\n" + err + '\n');
+                // We wait a bit between each command to be sure the browser can follow.
+                await page.waitFor(100);
+            }
+            if (error_log.length > 0) {
                 continue;
             }
-            console.log("ok");
+
+            var newImage = TEST_FOLDER + loaded[i]["file"] + `-${runId}.png`;
+            await page.screenshot({
+                path: newImage,
+                fullPage: true,
+            });
+
+            var originalImage = TEST_FOLDER + loaded[i]["file"] + ".png";
+            if (fs.existsSync(originalImage) === false) {
+                if (generateImages === false) {
+                    logs = appendLog(logs, 'ignored ("' + originalImage + '" not found)', true);
+                } else {
+                    fs.renameSync(newImage, originalImage);
+                    logs = appendLog(logs, 'ignored', true);
+                }
+                continue;
+            }
+            if (comparePixels(PNG.load(newImage).imgData,
+                              PNG.load(originalImage).imgData) === false) {
+                failures += 1;
+                logs = appendLog(logs, 'FAILED (images "' + newImage + '" and "' + originalImage +
+                                       '" are different)', true);
+                continue;
+            }
+            // If everything worked as expected, we can remove the generated image.
+            fs.unlinkSync(newImage);
+        } catch (err) {
+            failures += 1;
+            logs = appendLog(logs, 'FAILED', true);
+            logs = appendLog(logs, loaded[i]["file"] + " output:\n" + err + '\n');
+            continue;
         }
-        if (failures > 0) {
-            console.log("\n=== ERROR OUTPUT ===\n");
-            console.log(output.join("\n"));
-        }
-        await browser.close();
-        console.log("<= doc-ui tests done: " + (loaded.length - failures) + " succeeded, " +
-                    failures + " failed");
-        process.exitCode = failures; // exiting
-    });
+        await page.close();
+        logs = appendLog(logs, 'ok', true);
+    }
+    await browser.close();
+
+    const ret = removeFolder(outPath);
+    if (ret.hasOwnProperty("error")) {
+        logs = appendLog(logs, ret["error"]);
+    }
+
+    logs = appendLog(logs, "<= doc-ui tests done: " + (loaded.length - failures) + " succeeded, " +
+                           failures + " failed");
+
+    return [logs, failures];
 }
 
-main(process.argv);
+if (require.main === module) {
+    main(process.argv).then(x => {
+        var [output, error_code] = x;
+        console.log(output)
+        process.exit(error_code);
+    }).catch(err => {
+        console.log(err);
+        process.exit(1);
+    });
+} else {
+    module.exports = {
+        runTests: main,
+    };
+}
