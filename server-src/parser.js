@@ -122,9 +122,13 @@ function parseMoveCursorTo(line) {
 // * full URL (for example: https://doc.rust-lang.org/std/struct.Path.html)
 function parseGoToUrl(line) {
     // We just check if it goes to an HTML file, not checking much though...
-    if (line.startsWith("http") || line.startsWith("www.") || line.startsWith(".")) {
+    if (line.startsWith("http") || line.startsWith("www.")) {
         return {"instructions": [
             `page.goto("${line}")`,
+        ]};
+    } else if (line.startsWith(".")) {
+        return {"instructions": [
+            `page.goto(page.url().split("/").slice(0, -1).join("/") + "/" + "${line}")`,
         ]};
     }
     return {"error": "A relative path or a full URL was expected"};
