@@ -2,6 +2,7 @@ var http = require('http');
 var util = require('util');
 var spawnSync = require('child_process').spawnSync;
 var config = require('./config.js');
+var tester = require('./tester.js');
 
 var DOC_UI_RUNS = {};
 
@@ -20,25 +21,6 @@ function unknown_url(response, request) {
     response.end('Unknown URL: ' + request.url);
 }
 
-function update_repository() {
-    console.log('Updating current repository...');
-    try {
-        const upper = spawnSync('git', ['pull', 'origin', 'master']);
-        let stdout = upper.stdout.toString().trim();
-        let stderr = upper.stderr.toString().trim();
-        if (stdout.length > 0) {
-            console.log('[STDOUT] ' + stdout);
-        }
-        if (stderr.length > 0) {
-            console.log('[STDERR] ' + stderr);
-        }
-        return true;
-    } catch (e) {
-        console.error('update_repository error: ', e);
-        return false;
-    }
-}
-
 function check_rights(login) {
     let login = login.toLowerCase();
     for (let i = 0; i < config.PEOPLE.length; ++i) {
@@ -49,8 +31,8 @@ function check_rights(login) {
     return false;
 }
 
+// https://developer.github.com/v3/activity/events/types/#issuecommentevent
 function github_event(response, request, server) {
-    // const { headers, method, url } = request;
     let body = [];
 
     request.on('error', (err) => {
@@ -63,6 +45,12 @@ function github_event(response, request, server) {
 
             if (content['action'] === 'deleted') {
                 return;
+            }
+
+            // If we received the message that the rustdoc binary is ready, we can start tests!
+            if (DOC_UI_RUNS[content['issue']['url']] === false) {
+                // TODO: download rustdoc binary
+                tester.runTests(["", "", "rustdoc", "build/testX"/*rustdoc path*/]);
             }
 
             let msg = content['comment']['body'].split("\n");
@@ -90,12 +78,8 @@ function github_event(response, request, server) {
                 return;
             }
             if (need_restart === true) {
-                if (update_repository() === false) {
-                    response.end("Couldn't update repository...")
-                } else {
-                    restart(response, request, server);
-                    response.end("ok");
-                }
+                restart(response, request, server);
+                response.end("ok");
                 return;
             }
             if (run_doc_ui === true) {

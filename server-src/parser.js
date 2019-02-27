@@ -122,7 +122,7 @@ function parseMoveCursorTo(line) {
 // * full URL (for example: https://doc.rust-lang.org/std/struct.Path.html)
 function parseGoToUrl(line) {
     // We just check if it goes to an HTML file, not checking much though...
-    if (line.endsWith(".html")) {
+    if (line.startsWith("http") || line.startsWith("www.") || line.startsWith(".")) {
         return {"instructions": [
             `page.goto("${line}")`,
         ]};
@@ -141,16 +141,16 @@ function parseScrollTo(line) {
 const ORDERS = {
     'click': parseClick,
     'focus': parseFocus,
-    'goToUrl': parseGoToUrl,
-    'moveCursorTo': parseMoveCursorTo,
-    'scrollTo': parseScrollTo,
-    'waitFor': parseWaitFor,
+    'gotourl': parseGoToUrl,
+    'movecursorto': parseMoveCursorTo,
+    'scrollto': parseScrollTo,
+    'waitfor': parseWaitFor,
     'write': parseWrite,
 };
 
 function parseContent(content) {
     var lines = content.split(os.EOL);
-    var commands = [];
+    var commands = {"instructions": []};
     var res;
 
     for (var i = 0; i < lines.length; ++i) {
@@ -160,14 +160,16 @@ function parseContent(content) {
         }
         var order = line.split(':')[0].toLowerCase();
         if (ORDERS.hasOwnProperty(order)) {
-            res = ORDERS[order](lines[i].substr(order.length).trim());
+            res = ORDERS[order](lines[i].substr(order.length + 1).trim());
             if (res.error) {
                 res.line = i;
                 return [res];
             }
-            commands.push(res);
+            for (var y = 0; y < res["instructions"].length; ++y) {
+                commands["instructions"].push(res["instructions"][y]);
+            }
         } else {
-            return [{"error": `Unknown command "${order}"`, "line": i}];
+            return {"error": `Unknown command "${order}"`, "line": i};
         }
     }
     return commands;
