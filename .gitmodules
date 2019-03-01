@@ -1,0 +1,3 @@
+[submodule "rustup-toolchain-install-master"]
+	path = rustup-toolchain-install-master
+	url = https://github.com/kennytm/rustup-toolchain-install-master
