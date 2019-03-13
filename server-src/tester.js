@@ -14,6 +14,7 @@ const execFileSync = require('child_process').execFileSync;
 const PNG = require('png-js');
 const parser = require('./parser.js');
 const spawnSync = require('child_process').spawnSync;
+const utils = require('./utils.js');
 
 const TEST_FOLDER = 'ui-tests/';
 
@@ -40,13 +41,6 @@ function appendLog(logs, newLog, noBackline) {
     return `${logs}\n${newLog}`;
 }
 
-function addSlash(s) {
-    if (!s.endsWith('/')) {
-        return s + '/';
-    }
-    return s;
-}
-
 function removeFolder(folderPath) {
     try {
         const upper = spawnSync('rm', ['-rf', folderPath]);
@@ -66,11 +60,9 @@ async function main(argv) {
     }
 
     const rustdocPath = argv[2];
-    var currentDir = addSlash(__dirname);
-    if (currentDir.endsWith("server-src/")) {
-        currentDir = addSlash(currentDir.substr(0, currentDir.length - "server-src/".length));
-    }
-    const outPath = currentDir + addSlash(argv[3]);
+    var currentDir = utils.getCurrentDir();
+
+    const outPath = currentDir + utils.addSlash(argv[3]);
     const runId = argv[3];
     const docPath = outPath + "lib/";
     var generateImages = false;
@@ -78,7 +70,7 @@ async function main(argv) {
         generateImages = argv[4] === "--generate-images"; // TODO improve arguments parsing
     }
     try {
-        execFileSync(rustdocPath, ["test-docs/src/lib.rs", "-o", outPath]);
+        execFileSync(rustdocPath, [`+${runId}`, "test-docs/src/lib.rs", "-o", outPath]);
     } catch (err) {
         return ["=== STDERR ===\n" + err.stderr + "\n\n=== STDOUT ===\n" + err.stdout, 1];
     }
