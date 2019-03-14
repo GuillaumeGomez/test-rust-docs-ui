@@ -17,6 +17,11 @@ function restart(response, request, server) {
     response.end(text);
     console.log(text);
     server.close();
+    try {
+        execFileSync("git", ["pull", "origin", "master"]);
+    } catch(err) {
+        console.error("Cannot update server sources: '" + err + "'";
+    }
     process.exit(0);
 }
 
