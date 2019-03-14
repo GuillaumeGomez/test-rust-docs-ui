@@ -179,7 +179,7 @@ function readySubmodule(submodule_path) {
     try {
         var x = '/' + __dirname.split('/').filter(x => x.length > 0).slice(0, 2).join('/');
         x += '/.cargo/bin/cargo';
-        execFileSync(x, ["+nightly", "build", "--release"], { cwd: submodule_path });
+        execFileSync(x, ["build", "--release"], { cwd: submodule_path });
     } catch(err) {
         console.error("'cargo build --release' failed: " + err);
     }
