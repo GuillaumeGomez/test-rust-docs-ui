@@ -46,6 +46,7 @@ Now you can try to start the server:
 Now time to setup the HTTPS part:
 
 ```bash
+> cd # so we go back to the home folder, just in case
 > sudo apt install -y nginx
 > sudo systemctl stop nginx
 > git clone https://github.com/letsencrypt/letsencrypt.git
