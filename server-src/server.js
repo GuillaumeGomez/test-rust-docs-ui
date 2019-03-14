@@ -17,6 +17,7 @@ function restart(response, request, server) {
     response.end(text);
     console.log(text);
     server.close();
+    process.exit(0);
 }
 
 function unknown_url(response, request) {
