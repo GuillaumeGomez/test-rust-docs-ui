@@ -73,7 +73,7 @@ function parseData(response, request, server, func) {
         body.push(chunk);
     }).on('end', () => {
         if (typeof func === 'undefined') {
-            let contentType = res.headers['content-type'];
+            let contentType = request.headers['content-type'];
 
             if (contentType === "application/json") {
                 return github_event(response, request, server, body);
@@ -262,7 +262,7 @@ function start_server(argv) {
     };
 
     var server = http.createServer((request, response) => {
-        if (URLS.prototype.hasOwnProperty(request.url)) {
+        if (URLS.hasOwnProperty(request.url)) {
             URLS[request.url](response, request, server);
         } else {
             unknown_url(response, request);
