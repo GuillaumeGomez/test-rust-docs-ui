@@ -28,9 +28,14 @@ function readFile(filePath) {
     return fs.readFileSync(filePath, 'utf8');
 }
 
+function writeToFile(filePath, content) {
+    fs.writeFileSync(filePath, content, 'utf8');
+}
+
 module.exports = {
     addSlash: addSlash,
     getCurrentDir: getCurrentDir,
     updateRepository: updateRepository,
     readFile: readFile,
+    writeToFile: writeToFile,
 };

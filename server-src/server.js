@@ -9,16 +9,138 @@ const crypto = require('crypto');
 const fs = require('fs');
 
 var DOC_UI_RUNS = {};
+var TESTS_RESULTS = [];
+var RUNNING_TESTS = [];
 
 var GITHUB_WEBHOOK_SECRET_PATH = null;
 
+function make_link_from_url(url) {
+    var x = url.split('/');
+    x = x[x.length - 1];
+    return `<a href="${url}" target="_blank">${x}</a>`;
+}
+
 function get_status(response) {
-    response.write('<html>');
-    response.write('<body>');
-    response.write("<h1>Everything's good here!</h1>");
-    response.write('</body>');
-    response.write('</html>');
+    let lines = TESTS_RESULTS.map(x => {
+        let s = `<div class="line${x['errors'] > 0 ? ' error' : ''}" onclick="showHideLogs(this)">`;
+        s += `<div class="label">${make_link_from_url(x['url'])}</div>`;
+        if (x['errors'] > 0) {
+            s += `<span class="errors">${x['errors']}</span>`;
+        }
+        s += `<code class="logs" onclick="preventEv(event)">${x['text'].replace('<', '&lt;').replace('>', '&gt;').replace('\n', '<br>')}</code>`;
+        s += '</div>';
+        return s;
+    }).join('');
+
+    response.write(`<html>
+<head>
+    <title>rustdoc UI tests</title>
+    <script>
+function showHideLogs(elem) {
+    var e = elem.getElementsByClassName("logs")[0];
+    if (e.style.display !== "block") {
+        e.style.display = "block";
+    } else {
+        e.style.display = "none";
+    }
+}
+
+function preventEv(ev) {
+    ev.preventDefault();
+    ev.stopPropagation();
+}
+    </script>
+    <style type="text/css">
+body {
+    margin: 0;
+    padding: 0;
+}
+header {
+    background: #3c3c3c;
+    width: 100%;
+    height: 40px;
+}
+header > div {
+    padding-top: 3px;
+    text-align: center;
+    font-size: 1.8rem;
+    color: white;
+}
+header > div, .running, .results, .results > .line {
+    display: block;
+    width: 100%;
+}
+.content {
+    padding: 5px;
+}
+.title {
+    margin-top: 10px;
+    margin-bottom: 3px;
+    font-size: 1.4em;
+    text-align: center;
+    font-weight: bold;
+}
+.results {
+    border: 1px solid #ccc;
+    border-bottom: 0;
+    border-radius: 2px;
+}
+.results > .line {
+    border-bottom: 1px solid #ccc;
+    position: relative;
+    cursor: pointer;
+    width: auto;
+}
+.line > .label:hover {
+    background-color: #83c3fb;
+}
+.line > .label {
+    padding: 4px;
+}
+.line > .label > a {
+    text-decoration: none;
+}
+.line > .errors  {
+    width: 15px;
+    position: absolute;
+    right: 2px;
+    top: 2;
+    border: 1px solid red;
+    border-radius: 10px;
+    color: red;
+    background-color: #fff;
+    text-align: center;
+    padding: 1px;
+}
+.line > .logs {
+    display: none;
+    background-color: #eaeaea;
+    padding: 5px;
+}
+    </style>
+</head>
+<body>
+    <header><div>rustdoc UI tests</div></header>
+    <div class="content">
+        <div class="running">There is currently ${RUNNING_TESTS.length} ${RUNNING_TESTS.length > 1 ? 'tests running: (' + RUNNING_TESTS.map(make_link_from_url).join(', ') + ').' : 'test running.'}</div>
+        <div class="title">List of last tests results</div>
+        <div class="results">${lines}</div>
+    </div>
+</body>
+</html>`);
     response.end();
+}
+
+function add_test_results(output, issue_url, errors) {
+    if (TESTS_RESULTS.length >= config.MAX_TEST_RESULTS) {
+        TESTS_RESULTS.shift();
+    }
+    TESTS_RESULTS.push({'url': issue_url, 'text': output, 'errors': errors});
+    try {
+        utils.writeToFile(config.TESTS_RESULTS_FILE, JSON.stringify(TESTS_RESULTS));
+    } catch(err) {
+        console.error(`Couldn't save to "${config.TESTS_RESULTS_FILE}": ` + err);
+    }
 }
 
 function restart(response, request, server) {
@@ -143,19 +265,21 @@ function github_event(response, request, server, body) {
                     response.end("An error occurred:\n```text\n" + ret + "\n````");
                     return;
                 }
+                ;
                 tester.runTests(["", "", "rustdoc", id]).then(x => {
-                    let [output, error_code] = x;
+                    let [output, errors] = x;
                     response.statusCode = 200;
-                    if (error_code > 0) {
+                    if (errors > 0) {
                         let failure = "failure";
-                        if (error_code > 1) {
+                        if (errors > 1) {
                             failure = "failures";
                         }
-                        response.end("Rustdoc-UI tests failed (" + error_code + " " + failure +
+                        response.end("Rustdoc-UI tests failed (" + errors + " " + failure +
                                      ")...\n```text\n" + output + "\n```");
                     } else {
                         response.end("Rustdoc-UI tests passed!\n```text\n" + output + "\n```");
                     }
+                    add_test_results(output, content['issue']['url'], errors);
 
                     // cleanup part
                     DOC_UI_RUNS[content['issue']['url']] = undefined;
@@ -255,6 +379,19 @@ function start_server(argv) {
 
     readySubmodule(utils.getCurrentDir() + "rustup-toolchain-install-master");
 
+    try {
+        TESTS_RESULTS = JSON.parse(utils.readFile(config.TESTS_RESULTS_FILE));
+        if (Array.isArray(TESTS_RESULTS) !== true) {
+            console.error(`"${config.TESTS_RESULTS_FILE}" file doesn't have the expected format...`);
+            TESTS_RESULTS = [];
+        }
+    } catch(err) {
+        console.error(`Couldn't parse/read "${config.TESTS_RESULTS_FILE}", ignoring it...`);
+    }
+
+    //
+    // SERVER PART
+    //
     const URLS = {
         '/status': get_status,
         '/github': github_event,
