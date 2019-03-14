@@ -26,10 +26,6 @@ function loadContent(content) {
     return m.exports.f;
 }
 
-function readFile(filePath) {
-    return fs.readFileSync(filePath, 'utf8');
-}
-
 function comparePixels(img1, img2) {
     return img1.equals(img2);
 }
@@ -82,7 +78,7 @@ async function main(argv) {
     fs.readdirSync(TEST_FOLDER).forEach(function(file) {
         var fullPath = TEST_FOLDER + file;
         if (file.endsWith(".gom") && fs.lstatSync(fullPath).isFile()) {
-            var commands = parser.parseContent(readFile(fullPath));
+            var commands = parser.parseContent(utils.readFile(fullPath));
             if (commands.hasOwnProperty("error")) {
                 logs = appendLog(logs, file.substr(0, file.length - 4) + "... FAILED");
                 logs = appendLog(logs, `[line ${commands[i]["line"]}: ${commands[i]["error"]}`);

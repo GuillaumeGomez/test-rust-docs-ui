@@ -1,3 +1,6 @@
+const fs = require('fs');
+const execFileSync = require('child_process').execFileSync;
+
 function addSlash(s) {
     if (!s.endsWith('/')) {
         return s + '/';
@@ -21,8 +24,13 @@ function updateRepository() {
     }
 }
 
+function readFile(filePath) {
+    return fs.readFileSync(filePath, 'utf8');
+}
+
 module.exports = {
     addSlash: addSlash,
     getCurrentDir: getCurrentDir,
     updateRepository: updateRepository,
+    readFile: readFile,
 };

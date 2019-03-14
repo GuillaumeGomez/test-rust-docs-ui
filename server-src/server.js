@@ -5,8 +5,12 @@ var config = require('./config.js');
 var tester = require('./tester.js');
 const execFileSync = require('child_process').execFileSync;
 const utils = require('./utils.js');
+const crypto = require('crypto');
+const fs = require('fs');
 
 var DOC_UI_RUNS = {};
+
+var GITHUB_WEBHOOK_SECRET_PATH = null;
 
 function get_status(response) {
     response.write('<html>');
@@ -78,10 +82,29 @@ function parseData(response, request, server) {
     });
 }
 
+function check_signature(req, body) {
+    if (GITHUB_WEBHOOK_SECRET_PATH === null) {
+        console.warn('No signature check, this is unsafe!');
+        return true;
+    }
+    let github_webhook_secret = utils.readFile(GITHUB_WEBHOOK_SECRET_PATH).replace('\n', '');
+    let hmac = crypto.createHmac('sha1', github_webhook_secret);
+    hmac.update(JSON.stringify(body));
+    let calculatedSignature = 'sha1=' + hmac.digest('hex');
+
+    return req.headers['x-hub-signature'] === calculatedSignature;
+}
+
 // https://developer.github.com/v3/activity/events/types/#issuecommentevent
 function github_event(response, request, server, body) {
     try {
         let content = JSON.parse(Buffer.concat(body).toString());
+
+        if (check_signature(request, content) !== true) {
+            response.statusCode = 403;
+            response.end("github-webhook-secret didn't match");
+            return;
+        }
 
         if (content['action'] === 'deleted') {
             response.end();
@@ -188,7 +211,7 @@ function github_event(response, request, server, body) {
 }
 
 function readySubmodule(submodule_path) {
-    console.log("Getting components ready...");
+    console.log("=> Getting components ready...");
     try {
         execFileSync("git", ["submodule", "update", "--init"]);
     } catch(err) {
@@ -201,23 +224,45 @@ function readySubmodule(submodule_path) {
     } catch(err) {
         console.error("'cargo build --release' failed: " + err);
     }
-    console.log("Done!");
+    console.log("<= Done!");
 }
 
-readySubmodule(utils.getCurrentDir() + "rustup-toolchain-install-master");
-
-const URLS = {
-    '/status': get_status,
-    '/': parseData,
-    '': parseData,
-};
-
-var server = http.createServer((request, response) => {
-    if (URLS.prototype.hasOwnProperty(request.url)) {
-        URLS[request.url](response, request, server);
-    } else {
-        unknown_url(response, request);
+function start_server(argv) {
+    if (argv.length < 3) {
+        console.error('node server.rs [github secret webhook path|--ignore-webhook-secret]!');
+        process.exit(1);
     }
-});
-server.listen(config.PORT);
-console.log("server started on 0.0.0.0:" + config.PORT);
+    if (argv[2] === '--ignore-webhook-secret') {
+        console.warn('=> Disabling github webhook signature check. This is unsafe!');
+    } else {
+        GITHUB_WEBHOOK_SECRET_PATH = argv[2];
+
+        if (fs.existsSync(GITHUB_WEBHOOK_SECRET_PATH) === false) {
+            console.error('Invalid path received: "' + GITHUB_WEBHOOK_SECRET_PATH + '"');
+            process.exit(2);
+        }
+        console.log('=> Found github-webhook-secret file');
+    }
+
+    readySubmodule(utils.getCurrentDir() + "rustup-toolchain-install-master");
+
+    const URLS = {
+        '/status': get_status,
+        '/': parseData,
+        '': parseData,
+    };
+
+    var server = http.createServer((request, response) => {
+        if (URLS.prototype.hasOwnProperty(request.url)) {
+            URLS[request.url](response, request, server);
+        } else {
+            unknown_url(response, request);
+        }
+    });
+    server.listen(config.PORT);
+    console.log("server started on 0.0.0.0:" + config.PORT);
+}
+
+if (require.main === module) {
+    start_server(process.argv);
+}
