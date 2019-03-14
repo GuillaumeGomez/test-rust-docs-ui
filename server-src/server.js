@@ -177,6 +177,7 @@ function github_event(response, request, server, body) {
         let need_restart = false;
         let need_update = false;
         for (let i = 0; i < msg.length; ++i) {
+            let line = msg[i];
             if (line.trim().startsWith("@" + config.BOT_NAME) === false) {
                 continue;
             }
