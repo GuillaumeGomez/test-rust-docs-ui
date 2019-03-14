@@ -64,7 +64,7 @@ function uninstallRustdoc(id) {
     }
 }
 
-function parseData(response, request, server) {
+function parseData(response, request, server, func) {
     let body = [];
 
     request.on('error', (err) => {
@@ -72,12 +72,16 @@ function parseData(response, request, server) {
     }).on('data', (chunk) => {
         body.push(chunk);
     }).on('end', () => {
-        let contentType = res.headers['content-type'];
+        if (typeof func === 'undefined') {
+            let contentType = res.headers['content-type'];
 
-        if (contentType === "application/json") {
-            return github_event(response, request, server, body);
+            if (contentType === "application/json") {
+                return github_event(response, request, server, body);
+            } else {
+                return get_status(response);
+            }
         } else {
-            return get_status(response);
+            return func(response, request, server, body);
         }
     });
 }
@@ -97,6 +101,10 @@ function check_signature(req, body) {
 
 // https://developer.github.com/v3/activity/events/types/#issuecommentevent
 function github_event(response, request, server, body) {
+    if (typeof body === 'undefined') {
+        // It means this function was called directly by the server, needs to get the data!
+        return parseData(response, request, server, github_event);
+    }
     try {
         let content = JSON.parse(Buffer.concat(body).toString());
 
@@ -248,6 +256,7 @@ function start_server(argv) {
 
     const URLS = {
         '/status': get_status,
+        '/github': github_event,
         '/': parseData,
         '': parseData,
     };
