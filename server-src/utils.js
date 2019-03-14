@@ -13,7 +13,16 @@ function getCurrentDir() {
     return currentDir;
 }
 
+function updateRepository() {
+    try {
+        execFileSync("git", ["pull", "origin", "master"]);
+    } catch(err) {
+        console.error("Cannot update server sources: '" + err + "'");
+    }
+}
+
 module.exports = {
     addSlash: addSlash,
     getCurrentDir: getCurrentDir,
+    updateRepository: updateRepository,
 };
