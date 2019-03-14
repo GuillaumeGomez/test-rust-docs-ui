@@ -172,7 +172,9 @@ function readySubmodule(submodule_path) {
         console.error("'git submodule update --init' failed: " + err);
     }
     try {
-        execFileSync("cargo", ["build", "--release"], { cwd: submodule_path });
+        var x = '/' + __dirname.split('/').filter(x => x.length > 0).slice(0, 2).join('/');
+        x += '/.cargo/bin/cargo';
+        execFileSync(x, ["build", "--release"], { cwd: submodule_path });
     } catch(err) {
         console.error("'cargo build --release' failed: " + err);
     }
