@@ -119,7 +119,7 @@ function github_event(response, request, server, body) {
             return;
         }
 
-        res.setHeader('Content-Type', 'application/json');
+        response.setHeader('Content-Type', 'application/json');
 
         // If we received the message that the rustdoc binary is ready, we can start tests!
         if (DOC_UI_RUNS[content['issue']['url']] === false) {
