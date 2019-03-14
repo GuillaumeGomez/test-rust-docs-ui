@@ -17,11 +17,7 @@ function restart(response, request, server) {
     response.end(text);
     console.log(text);
     server.close();
-    try {
-        execFileSync("git", ["pull", "origin", "master"]);
-    } catch(err) {
-        console.error("Cannot update server sources: '" + err + "'");
-    }
+    utils.updateRepository();
     process.exit(0);
 }
 
@@ -129,6 +125,7 @@ function github_event(response, request, server) {
             let msg = content['comment']['body'].split("\n");
             let run_doc_ui = false;
             let need_restart = false;
+            let need_update = false;
             for (let i = 0; i < msg.length; ++i) {
                 if (line.trim().startsWith("@" + config.BOT_NAME) === false) {
                     continue;
@@ -140,20 +137,23 @@ function github_event(response, request, server) {
                         run_doc_ui = true;
                     } else if (cmd === "restart") {
                         need_restart = true;
+                    } else if (cmd === "update") {
+                        need_update = true;
                     } else {
                         // we ignore the rest.
                     }
                 }
             }
-            if ((need_restart === true || run_doc_ui === true) &&
+            if ((need_restart === true || run_doc_ui === true || need_update === true) &&
                     check_rights(content['comment']['user']['login']) === false) {
                 console.log('github_event: missing rights for ' + content['comment']['user']['login']);
                 return;
             }
+            if (need_update === true) {
+                utils.updateRepository();
+            }
             if (need_restart === true) {
                 restart(response, request, server);
-                response.end("ok");
-                return;
             }
             if (run_doc_ui === true) {
                 // We wait for the rustdoc build to end before trying to get it.
