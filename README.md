@@ -32,7 +32,7 @@ Then let's continue:
 
 ```bash
 > sudo apt install -y libssl-dev pkg-config nodejs npm
-> npm install puppeteer png-js
+> npm install puppeteer png-js axios
 > curl https://sh.rustup.rs -sSf | sh # a nightly version might be better in here
 > source $HOME/.cargo/env
 ```

@@ -7,6 +7,7 @@ const execFileSync = require('child_process').execFileSync;
 const utils = require('./utils.js');
 const crypto = require('crypto');
 const fs = require('fs');
+const axios = require('axios');
 
 var DOC_UI_RUNS = {};
 var TESTS_RESULTS = [];
@@ -157,6 +158,33 @@ function unknown_url(response, request) {
 }
 
 function check_rights(login) {
+    const teams = async () => {
+        try {
+            return await axios.get(config.TEAMS_URL);
+        } catch (error) {
+            console.error(error);
+            return null;
+        }
+    };
+    if (teams !== null && teams.constructor == Object && Object.keys(teams).length > 0) {
+        const teams_to_check = ['infra', 'rustdoc'];
+        for (let i = 0; i < teams_to_check.length; ++i) {
+            let team = teams_to_check[i];
+            if (teams[team] === undefined ||
+                    teams[team]['members'] === undefined ||
+                    Array.isArray(teams[team]['members']) !== true) {
+                continue;
+            }
+            for (let x = 0; x < teams[team]['members'].length; ++x) {
+                let name = teams[team]['members'][x]['github'];
+                if (name === login) {
+                    return true;
+                }
+            }
+        }
+    }
+
+    // Backup part in case we couldn't get the teams list.
     let login = login.toLowerCase();
     for (let i = 0; i < config.PEOPLE.length; ++i) {
         if (login === config.PEOPLE[i].toLowerCase()) {
@@ -305,8 +333,8 @@ function github_event(response, request, server, body) {
             if (line.trim().startsWith("@" + config.BOT_NAME) === false) {
                 continue;
             }
-            let parts = line.split(" ").filter(w => w.length > 0).slice(1);
-            for (var x = 0; x < parts.length; ++x) {
+            let parts = line.split(" ").filter(w => w.length > 0);
+            for (var x = 1; x < parts.length; ++x) {
                 let cmd = parts[x].toLowerCase();
                 if (cmd === "run-doc-ui") {
                     run_doc_ui = true;
