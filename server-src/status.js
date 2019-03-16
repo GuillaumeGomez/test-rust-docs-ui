@@ -49,6 +49,7 @@ header > div, .running, .results, .results > .line {
     border-radius: 3px;
     background-color: #99f;
     padding: 2px;
+    display: none;
 }
 .content {
     padding: 5px;
@@ -119,13 +120,15 @@ header > div, .running, .results, .results > .line {
 function get_admin_js() {
     return `
 function clean_text(t) {
-    return t.replace('<', '&lt;').replace('>', '&gt;').replace('\n', '<br>');
+    return t.replace('<', '&lt;').replace('>', '&gt;').replace('\\n', '<br>');
 }
-function ask_restart(elem) {
-    document.getElementById("info").innerHTML = "You should try to refresh the page in a few seconds...";
+function ask_restart() {
+    this.style.pointerEvents = "none";
     var xhr = new XMLHttpRequest();
     xhr.onreadystatechange = function() {
         if (this.readyState == 4 && this.status == 200) {
+            this.style.pointerEvents = "";
+            document.getElementById("info").style.display = "block";
             document.getElementById("info").innerHTML = clean_text(this.responseText);
         }
     };
@@ -135,10 +138,14 @@ function ask_restart(elem) {
 }
 
 function ask_update(elem) {
+    this.style.pointerEvents = "none";
     document.getElementById("info").innerHTML = "";
+    document.getElementById("info").style.display = "";
     var xhr = new XMLHttpRequest();
     xhr.onreadystatechange = function() {
         if (this.readyState == 4 && this.status == 200) {
+            this.style.pointerEvents = "";
+            document.getElementById("info").style.display = "block";
             document.getElementById("info").innerHTML = clean_text(this.responseText);
         }
     };
