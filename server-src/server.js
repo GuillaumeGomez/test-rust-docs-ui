@@ -80,8 +80,8 @@ async function get_admin(response, request) {
     <div class="content">
         <div class="title">Welcome to admin-land!</div>
         <div id="info"></div>
-        <div class="button" onclick="ask_update()">Update server</a>
-        <div class="button" onclick="ask_restart()">Restart server</a>
+        <div class="button" onclick="ask_update()">Update server</div>
+        <div class="button" onclick="ask_restart()">Restart server</div>
     </div>
 </body>
 </html>`);
