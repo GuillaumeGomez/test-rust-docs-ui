@@ -76,6 +76,7 @@ async function get_admin(response, request) {
 <body>
     <header>
         <div>rustdoc UI tests - Admin</div>
+        ${make_link('/', 'Home', null, 'log-in button')}
     </header>
     <div class="content">
         <div class="title">Welcome to admin-land!</div>
