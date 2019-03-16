@@ -90,6 +90,7 @@ async function get_admin(response, request) {
         response.write('<html><head><title>Page not found</title></head>');
         response.write(`<body>Page not found. ${make_link('/', 'Back to main page?')}</body></html>`);
     }
+    response.end();
 }
 
 async function get_status(response, request, server) {
