@@ -22,7 +22,6 @@ var GITHUB_CLIENT_SECRET = null;
 var COOKIE_KEYS = null;
 
 function make_link(url, text, blank, _class) {
-    let text = "";
     if (typeof _class !== "undefined") {
         _class = ` class="${_class}"`;
     }
