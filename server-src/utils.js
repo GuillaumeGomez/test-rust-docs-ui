@@ -67,24 +67,24 @@ function uninstallRustdoc(id) {
     }
 }
 
-function get_username(access_token) {
-    const data = async () => {
-        try {
-            return await axios.get(`${config.GH_API_URL}/user`,
-                                   {headers: {
-                                    'User-agent': 'imperio',
-                                    'Accept': 'application/vnd.github.v3+json',
-                                    'Authorization': `token ${access_token}`}
-                                   });
-        } catch (error) {
-            console.error(`http error in get_username: ${error}`);
-            return null;
-        }
-    };
+async function get_username(access_token) {
+    let content;
     try {
-        let content = JSON.parse(data);
+        let res = await axios.get(`${config.GH_API_URL}/user`,
+                                  {headers: {
+                                   'User-agent': 'imperio',
+                                   'Accept': 'application/vnd.github.v3+json',
+                                   'Authorization': `token ${access_token}`}
+                                  });
+        await res.data;
+        content = res.data;
+    } catch (error) {
+        console.error(`http error in get_username: ${error}`);
+        return null;
+    }
+    try {
         if (content['login'] === undefined) {
-            console.log(`No "login" provided in get_username for token ${access_token}...: ${data}`);
+            console.log(`No "login" provided in get_username for token ${access_token}...: ${content}`);
             return null;
         }
         return content['login'];

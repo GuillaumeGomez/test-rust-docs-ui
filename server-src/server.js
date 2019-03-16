@@ -37,9 +37,9 @@ function make_link_from_url(url) {
     return make_link(url, x, true);
 }
 
-function check_restart(response, request) {
+async function check_restart(response, request) {
     let cookies = utils.get_cookies(request, response, COOKIE_KEYS);
-    let has_access = check_rights(cookies.get('Login'));
+    let has_access = await check_rights(cookies.get('Login'));
 
     if (has_access !== true) {
         response.end('Not enough rights to perform this action!');
@@ -51,9 +51,9 @@ function check_restart(response, request) {
     response.end('Server will restart in 3 seconds');
 }
 
-function check_update(response, request) {
+async function check_update(response, request) {
     let cookies = utils.get_cookies(request, response, COOKIE_KEYS);
-    let has_access = check_rights(cookies.get('Login'));
+    let has_access = await check_rights(cookies.get('Login'));
 
     if (has_access !== true) {
         response.end('Not enough rights to perform this action!');
@@ -62,9 +62,9 @@ function check_update(response, request) {
     response.end(utils.updateRepository());
 }
 
-function get_admin(response, request) {
+async function get_admin(response, request) {
     let cookies = utils.get_cookies(request, response, COOKIE_KEYS);
-    let has_access = check_rights(cookies.get('Login'));
+    let has_access = await check_rights(cookies.get('Login'));
 
     if (has_access === true) {
         response.write(`<html>
@@ -92,7 +92,7 @@ function get_admin(response, request) {
     }
 }
 
-function get_status(response, request, server) {
+async function get_status(response, request, server) {
     let cookies = utils.get_cookies(request, response, COOKIE_KEYS);
 
     let lines = TESTS_RESULTS.map(x => {
@@ -115,7 +115,8 @@ function get_status(response, request, server) {
     let is_authenticated = typeof cookies.get('Login') !== "undefined" && typeof cookies.get('Token') !== undefined;
     let github_part = '';
     if (is_authenticated) {
-        if (check_rights(cookies.get('Login')) === true) {
+        let r = await check_rights(cookies.get('Login'));
+        if (r === true) {
             github_part = make_link('/admin', 'Admin part', null, 'log-in button');
         } else {
             github_part = `<div class="log-in button">Welcome ${cookies.get('Login')}!</div>`;
@@ -197,7 +198,7 @@ async function github_authentication(response, request, server) {
         return redirection_error(response, cookies, 'Error from github: missing "access_token" field...');
     }
     let access_token = data['access_token'];
-    let login = utils.get_username(access_token);
+    let login = await utils.get_username(access_token);
     if (login === null) {
         console.error('Cannot get username...');
         return redirection_error(response, cookies, 'Error from github: missing "access_token" field...');
@@ -234,18 +235,11 @@ function get_favicon(response, request) {
     response.end();
 }
 
-function check_rights(login) {
+async function check_rights(login) {
     if (typeof login === "undefined" || login === null || login.length < 1) {
         return false;
     }
-    const teams = async () => {
-        try {
-            return await axios.get(config.TEAMS_URL);
-        } catch (error) {
-            console.error(error);
-            return null;
-        }
-    };
+    const teams = await axios.get(config.TEAMS_URL);
     if (teams !== null && teams.constructor == Object && Object.keys(teams).length > 0) {
         const teams_to_check = ['infra', 'rustdoc'];
         for (let i = 0; i < teams_to_check.length; ++i) {
@@ -310,7 +304,7 @@ function check_signature(req, body) {
 }
 
 // https://developer.github.com/v3/activity/events/types/#issuecommentevent
-function github_event(response, request, server, body) {
+async function github_event(response, request, server, body) {
     if (typeof body === 'undefined') {
         // It means this function was called directly by the server, needs to get the data!
         return parseData(response, request, server, github_event);
@@ -328,8 +322,6 @@ function github_event(response, request, server, body) {
             response.end();
             return;
         }
-
-        response.setHeader('Content-Type', 'application/json');
 
         // If we received the message that the rustdoc binary is ready, we can start tests!
         if (DOC_UI_RUNS[content['issue']['url']] === false) {
@@ -349,7 +341,6 @@ function github_event(response, request, server, body) {
             if (id !== null) {
                 let ret = utils.installRustdoc(id);
                 if (ret !== true) {
-                    response.statusCode = 200;
                     response.end("An error occurred:\n```text\n" + ret + "\n````");
                     return;
                 }
@@ -373,7 +364,6 @@ function github_event(response, request, server, body) {
                     DOC_UI_RUNS[content['issue']['url']] = undefined;
                     utils.uninstallRustdoc(id);
                 }).catch(err => {
-                    response.statusCode = 200;
                     response.end("A test error occurred:\n```text\n" + err + "\n```");
 
                     // cleanup part
@@ -407,10 +397,13 @@ function github_event(response, request, server, body) {
                 }
             }
         }
-        if ((need_restart === true || run_doc_ui === true || need_update === true) &&
-                check_rights(content['comment']['user']['login']) === false) {
-            console.log('github_event: missing rights for ' + content['comment']['user']['login']);
-            return;
+        if (need_restart === true || run_doc_ui === true || need_update === true) {
+            let r = await check_rights(content['comment']['user']['login']);
+            if (r === false) {
+                console.log('github_event: missing rights for ' + content['comment']['user']['login']);
+                response.end();
+                return;
+            }
         }
         if (need_update === true) {
             utils.updateRepository();
@@ -423,7 +416,6 @@ function github_event(response, request, server, body) {
             DOC_UI_RUNS[content['issue']['url']] = false;
         }
 
-        response.statusCode = 200;
         response.end();
     } catch (e) {
         console.error('github_event: ', e);
