@@ -259,7 +259,7 @@ async function check_rights(login) {
     }
 
     // Backup part in case we couldn't get the teams list.
-    let login = login.toLowerCase();
+    login = login.toLowerCase();
     for (let i = 0; i < config.PEOPLE.length; ++i) {
         if (login === config.PEOPLE[i].toLowerCase()) {
             return true;
