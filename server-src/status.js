@@ -151,4 +151,5 @@ function ask_update(elem) {
 module.exports = {
     get_status_css: get_status_css,
     get_status_js: get_status_js,
+    get_admin_js: get_admin_js,
 };
