@@ -9,6 +9,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const axios = require('axios');
 const mstatus = require('./status.js');
+const m_url = require('url');
 
 var DOC_UI_RUNS = {};
 var TESTS_RESULTS = [];
@@ -568,7 +569,7 @@ function start_server(argv) {
     };
 
     var server = http.createServer((request, response) => {
-        request.url = new URL('http://a.a' + request.url);
+        request.url = m_url.parse('http://a.a' + request.url);
         if (URLS.hasOwnProperty(request.url.pathname)) {
             URLS[request.url.pathname](response, request, server);
         } else {
