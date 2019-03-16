@@ -84,12 +84,12 @@ function get_username(access_token) {
     try {
         let content = JSON.parse(data);
         if (content['login'] === undefined) {
-            console.log(`No "login" provided in get_username...: ${data}`);
+            console.log(`No "login" provided in get_username for token ${access_token}...: ${data}`);
             return null;
         }
         return content['login'];
     } catch(err) {
-        console.error(`An error occurred in get_username: ${err}`);
+        console.error(`An error occurred in get_username for token ${access_token}: ${err}`);
         return null;
     }
 }
