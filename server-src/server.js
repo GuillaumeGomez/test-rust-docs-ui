@@ -561,6 +561,7 @@ function start_server(argv) {
         '/authenticate': github_authentication,
         '/admin': get_admin,
         '/restart': check_restart,
+        '/update': check_update,
         '/favicon.ico': get_favicon,
         '/': parseData,
         '': parseData,
