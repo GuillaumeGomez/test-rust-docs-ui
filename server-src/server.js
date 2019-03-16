@@ -39,7 +39,7 @@ function make_link_from_url(url) {
 
 async function check_restart(response, request) {
     let cookies = utils.get_cookies(request, response, COOKIE_KEYS);
-    let has_access = await check_rights(cookies.get('Login'));
+    let has_access = await check_rights(cookies.get('Login')).catch(() => {});
 
     if (has_access !== true) {
         response.end('Not enough rights to perform this action!');
@@ -53,7 +53,7 @@ async function check_restart(response, request) {
 
 async function check_update(response, request) {
     let cookies = utils.get_cookies(request, response, COOKIE_KEYS);
-    let has_access = await check_rights(cookies.get('Login'));
+    let has_access = await check_rights(cookies.get('Login')).catch(() => {});
 
     if (has_access !== true) {
         response.end('Not enough rights to perform this action!');
@@ -64,7 +64,7 @@ async function check_update(response, request) {
 
 async function get_admin(response, request) {
     let cookies = utils.get_cookies(request, response, COOKIE_KEYS);
-    let has_access = await check_rights(cookies.get('Login'));
+    let has_access = await check_rights(cookies.get('Login')).catch(() => {});
 
     if (has_access === true) {
         response.write(`<html>
@@ -116,7 +116,7 @@ async function get_status(response, request, server) {
     let is_authenticated = typeof cookies.get('Login') !== "undefined" && typeof cookies.get('Token') !== undefined;
     let github_part = '';
     if (is_authenticated) {
-        let r = await check_rights(cookies.get('Login'));
+        let r = await check_rights(cookies.get('Login')).catch(() => {});
         if (r === true) {
             github_part = make_link('/admin', 'Admin part', null, 'log-in button');
         } else {
@@ -182,7 +182,7 @@ async function github_authentication(response, request, server) {
                                    {headers: {
                                      'Content-type': 'application/json',
                                      'Accept': 'application/json'}
-                                   });
+                                   }).catch(() => {});
         await res.data;
         data = res.data;
     } catch (err) {
@@ -199,8 +199,8 @@ async function github_authentication(response, request, server) {
         return redirection_error(response, cookies, 'Error from github: missing "access_token" field...');
     }
     let access_token = data['access_token'];
-    let login = await utils.get_username(access_token);
-    if (login === null) {
+    let login = await utils.get_username(access_token).catch(() => {});
+    if (login === null || typeof login !== "string") {
         console.error('Cannot get username...');
         return redirection_error(response, cookies, 'Error from github: missing "access_token" field...');
     }
@@ -240,7 +240,7 @@ async function check_rights(login) {
     if (typeof login === "undefined" || login === null || login.length < 1) {
         return false;
     }
-    const teams = await axios.get(config.TEAMS_URL);
+    const teams = await axios.get(config.TEAMS_URL).catch(() => {});
     if (teams !== null && teams.constructor == Object && Object.keys(teams).length > 0) {
         const teams_to_check = ['infra', 'rustdoc'];
         for (let i = 0; i < teams_to_check.length; ++i) {
@@ -399,8 +399,8 @@ async function github_event(response, request, server, body) {
             }
         }
         if (need_restart === true || run_doc_ui === true || need_update === true) {
-            let r = await check_rights(content['comment']['user']['login']);
-            if (r === false) {
+            let r = await check_rights(content['comment']['user']['login']).catch(() => {});
+            if (r !== true) {
                 console.log('github_event: missing rights for ' + content['comment']['user']['login']);
                 response.end();
                 return;

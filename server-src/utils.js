@@ -75,7 +75,7 @@ async function get_username(access_token) {
                                    'User-agent': 'imperio',
                                    'Accept': 'application/vnd.github.v3+json',
                                    'Authorization': `token ${access_token}`}
-                                  });
+                                  }).catch(() => {});
         await res.data;
         content = res.data;
     } catch (error) {
