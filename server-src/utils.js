@@ -71,9 +71,11 @@ function get_username(access_token) {
     const data = async () => {
         try {
             return await axios.get(`${config.GH_API_URL}/user`,
-                                   {'User-agent': 'imperio',
+                                   {headers: {
+                                    'User-agent': 'imperio',
                                     'Accept': 'application/vnd.github.v3+json',
-                                    'Authorization': `token ${access_token}`});
+                                    'Authorization': `token ${access_token}`}
+                                   });
         } catch (error) {
             console.error(`http error in get_username: ${error}`);
             return null;
