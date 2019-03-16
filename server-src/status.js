@@ -97,22 +97,22 @@ header > div, .running, .results, .results > .line, .error {
     background-color: #eaeaea;
     padding: 5px;
 }
+.button {
+    text-align: center;
+    font-size: 20px;
+    border: 1px solid #fff;
+    border-radius: 6px;
+    padding: 3px;
+    cursor: pointer;
+    text-decoration: none;
+    display: block;
+    background-color: #5d44a7;
+    color: #fff;
+}
 .log-in {
     position: absolute;
     right: 5px;
     top: 5px;
-    text-align: center;
-    font-size: 20px;
-    border: 1px solid;
-    border-radius: 3px;
-    padding: 3px;
-    cursor: pointer;
-    margin-right: auto;
-    margin-left: auto;
-    text-decoration: none;
-    display: block;
-    box-shadow: 0 0 7px 0 #656565;
-    width: 230px;
 }`;
 }
 

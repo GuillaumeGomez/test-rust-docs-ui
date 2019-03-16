@@ -80,8 +80,8 @@ function get_admin(response, request) {
     <div class="content">
         <div class="title">Welcome to admin-land!</div>
         <div id="info"></div>
-        <a class="log-in" href="/update">Update server</a>
-        <a class="log-in" href="/restart">Restart server</a>
+        <a class="button" href="/update">Update server</a>
+        <a class="button" href="/restart">Restart server</a>
     </div>
 </body>
 </html>`);
@@ -118,13 +118,13 @@ function get_status(response, request, server, error, cookies) {
     let github_part = '';
     if (is_authenticated) {
         if (check_rights(cookies.get('Login')) === true) {
-            github_part = make_link('/admin', 'Admin part', null, 'log-in');
+            github_part = make_link('/admin', 'Admin part', null, 'log-in button');
         } else {
-            github_part = `<div class="log-in">Welcome ${cookies.get('Login')}!</div>`;
+            github_part = `<div class="log-in button">Welcome ${cookies.get('Login')}!</div>`;
         }
     } else if (GITHUB_CLIENT_ID !== null) {
         github_part = make_link(`${config.GH_URL}/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}`,
-                                'Authenticate yourself', null, 'log-in');
+                                'Authenticate yourself', null, 'log-in button');
     }
 
     response.write(`<html>
@@ -166,7 +166,7 @@ function github_authentication(response, request, server) {
         console.error('Failed authentication attempt...');
         return get_status(response, request, server, 'No token provided by github...');
     }
-    const response = async () => {
+    const data = async () => {
         try {
             return await axios.post(`${config.GH_URL}/login/oauth/access_token`,
                                     {'client_id': GITHUB_CLIENT_ID,
@@ -179,17 +179,17 @@ function github_authentication(response, request, server) {
             return null;
         }
     };
-    if (response.data['error_description'] !== undefined) {
+    if (data.data['error_description'] !== undefined) {
         console.error('Failed authentication validation attempt...');
         return get_status(response, request, server,
-                          `Error from github: ${response.data['error_description']}`);
+                          `Error from github: ${data.data['error_description']}`);
     }
-    if (response.data['access_token'] === undefined) {
+    if (data.data['access_token'] === undefined) {
         console.error('Failed authentication validation attempt (missing "access_token" field?)...');
         return get_status(response, request, server,
                           'Error from github: missing "access_token" field...');
     }
-    let access_token = response.data['access_token'];
+    let access_token = data.data['access_token'];
     let login = utils.get_username(access_token);
     if (login === null) {
         console.error('Cannot get username...');
