@@ -8,4 +8,10 @@ module.exports = {
     MAX_TEST_RESULTS: 100,
     TESTS_RESULTS_FILE: 'test_results.json',
     TEAMS_URL: 'https://team-api.infra.rust-lang.org/v1/teams.json',
+    COOKIE_KEYS_FILE: 'cookie-keys.json',
+    GITHUB_APP_CREDENTIALS_FILE: 'github_credentials.json',
+    FAVICON_FILE: 'assets/favicon.png',
+    GH_URL: 'https://github.com',
+    GH_API_URL: 'https://api.github.com',
+    USERS_FILE: 'users.json',
 };
