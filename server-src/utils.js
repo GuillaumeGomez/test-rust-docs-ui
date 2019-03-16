@@ -24,7 +24,10 @@ function updateRepository() {
     }
 }
 
-function readFile(filePath) {
+function readFile(filePath, encoding) {
+    if (typeof encoding !== 'undefined') {
+        return fs.readFileSync(filePath, encoding);
+    }
     return fs.readFileSync(filePath, 'utf8');
 }
 

@@ -8,20 +8,49 @@ const utils = require('./utils.js');
 const crypto = require('crypto');
 const fs = require('fs');
 const axios = require('axios');
+var Cookies = require('cookies');
 
 var DOC_UI_RUNS = {};
 var TESTS_RESULTS = [];
 var RUNNING_TESTS = [];
+var FAVICON_DATA = null;
 
 var GITHUB_WEBHOOK_SECRET_PATH = null;
+var GITHUB_CLIENT_ID = null;
+var GITHUB_CLIENT_SECRET = null;
+
+function make_link(url, text, blank) {
+    if (blank === true) {
+        return `<a href="${url}" target="_blank">${text}</a>`
+    }
+    return `<a href="${url}">${text}</a>`;
+}
 
 function make_link_from_url(url) {
     var x = url.split('/');
     x = x[x.length - 1];
-    return `<a href="${url}" target="_blank">${x}</a>`;
+    return make_link(url, x, true);
 }
 
-function get_status(response) {
+function get_cookies(req, res) {
+    return new Cookies(req, res, { keys: config.COOKIE_KEYS });
+}
+
+function get_admin(response, cookies) {
+    // check if you have rights to be there
+    var is_authenticated = true;
+    var has_access = is_authenticated && check_rights("test");
+
+    if (has_access === true) {
+        ;
+    } else {
+        response.statusCode = 404;
+        response.write('<html><head><title>Page not found</title></head>');
+        response.write(`<body>Page not found. ${make_link('/', 'Back to main page?')}</body></html>`);
+    }
+}
+
+function get_status(response, cookies) {
     let lines = TESTS_RESULTS.map(x => {
         let s = `<div class="line${x['errors'] > 0 ? ' error' : ''}" onclick="showHideLogs(this)">`;
         s += `<div class="label">${make_link_from_url(x['url'])}</div>`;
@@ -35,7 +64,7 @@ function get_status(response) {
 
     response.write(`<html>
 <head>
-    <title>rustdoc UI tests</title>
+    <title>rustdoc UI tests</title>${FAVICON_DATA === null ? "" : '<link rel="icon" type="image/png" sizes="32x32" href="/favicon.ico">'}
     <script>
 function showHideLogs(elem) {
     var e = elem.getElementsByClassName("logs")[0];
@@ -144,6 +173,9 @@ function add_test_results(output, issue_url, errors) {
     }
 }
 
+function github_authentication(response, request, server) {
+}
+
 function restart(response, request, server) {
     const text = 'shutting down server...';
     response.end(text);
@@ -154,7 +186,19 @@ function restart(response, request, server) {
 }
 
 function unknown_url(response, request) {
+    response.statusCode = 404;
     response.end('Unknown URL: ' + request.url);
+}
+
+function get_favicon(response, request) {
+    if (FAVICON_DATA === null) {
+        // we couldn't load the favicon so we just send back 404...
+        return unknown_url(response, request);
+    }
+    response.statusCode = 200
+    response.setHeader('Content-Type', 'image/png');
+    response.write(FAVICON_DATA);
+    response.end();
 }
 
 function check_rights(login) {
@@ -228,7 +272,7 @@ function parseData(response, request, server, func) {
             if (contentType === "application/json") {
                 return github_event(response, request, server, body);
             } else {
-                return get_status(response);
+                return get_status(response, get_cookies(request, response));
             }
         } else {
             return func(response, request, server, body);
@@ -388,6 +432,47 @@ function readySubmodule(submodule_path) {
     console.log("<= Done!");
 }
 
+function load_github_appli_credentials() {
+    console.log('=> Getting github app credentials...');
+    let content;
+    try {
+        content = utils.readFile(config.GITHUB_APP_CREDENTIALS_FILE);
+    } catch(err) {
+        console.warn(`Couldn't read "${config.GITHUB_APP_CREDENTIALS_FILE}": ${err}`);
+        return false;
+    }
+    try {
+        content = JSON.parse(content);
+    } catch(err) {
+        console.warn(`Invalid JSON format in "${config.GITHUB_APP_CREDENTIALS_FILE}": ${err}`);
+        return false;
+    }
+    if (content['GITHUB_CLIENT_ID'] !== undefined) {
+        GITHUB_CLIENT_ID = content['GITHUB_CLIENT_ID'];
+    }
+    if (content['GITHUB_CLIENT_SECRET'] !== undefined) {
+        GITHUB_CLIENT_SECRET = content['GITHUB_CLIENT_SECRET'];
+    }
+    if (GITHUB_CLIENT_SECRET === null || GITHUB_CLIENT_ID === null) {
+        console.warn(`"${config.GITHUB_APP_CREDENTIALS_FILE}" needs "GITHUB_CLIENT_ID" and "GITHUB_CLIENT_SECRET" keys`);
+        return false;
+    }
+    return true;
+}
+
+function load_favicon_data() {
+    console.log('=> Loading favicon file...');
+    let content;
+    try {
+        content = utils.readFile(config.FAVICON_FILE, null);
+    } catch(err) {
+        console.warn(`Couldn't read "${config.FAVICON_FILE}": ${err}`);
+        console.log("<= no favicon loaded...");
+    }
+    FAVICON_DATA = content;
+    console.log("<= favicon loaded!");
+}
+
 function start_server(argv) {
     if (argv.length < 3) {
         console.error('node server.rs [github secret webhook path|--ignore-webhook-secret]!');
@@ -414,8 +499,15 @@ function start_server(argv) {
             TESTS_RESULTS = [];
         }
     } catch(err) {
-        console.error(`Couldn't parse/read "${config.TESTS_RESULTS_FILE}", ignoring it...`);
+        console.warn(`Couldn't parse/read "${config.TESTS_RESULTS_FILE}", ignoring it...`);
     }
+
+    if (load_github_appli_credentials() !== true) {
+        console.log('<= github authentication is deactivated...');
+    } else {
+        console.log('<= github authentication is activated!')
+    }
+    load_favicon_data();
 
     //
     // SERVER PART
@@ -423,13 +515,16 @@ function start_server(argv) {
     const URLS = {
         '/status': get_status,
         '/github': github_event,
+        '/authenticate': github_authentication,
+        '/favicon.ico': get_favicon,
         '/': parseData,
         '': parseData,
     };
 
     var server = http.createServer((request, response) => {
-        if (URLS.hasOwnProperty(request.url)) {
-            URLS[request.url](response, request, server);
+        request.url = new URL('http://a.a' + request.url);
+        if (URLS.hasOwnProperty(request.url.pathname)) {
+            URLS[request.url.pathname](response, request, server);
         } else {
             unknown_url(response, request);
         }
