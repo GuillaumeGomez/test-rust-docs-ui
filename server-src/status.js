@@ -32,7 +32,7 @@ header > div {
     font-size: 1.8rem;
     color: white;
 }
-header > div, .running, .results, .results > .line, .error {
+header > div, .running, .results, .results > .line {
     display: block;
     width: 100%;
 }

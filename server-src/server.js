@@ -92,10 +92,8 @@ function get_admin(response, request) {
     }
 }
 
-function get_status(response, request, server, error, cookies) {
-    if (typeof cookies === "undefined") {
-        cookies = utils.get_cookies(request, response, COOKIE_KEYS);
-    }
+function get_status(response, request, server) {
+    let cookies = utils.get_cookies(request, response, COOKIE_KEYS);
 
     let lines = TESTS_RESULTS.map(x => {
         let s = `<div class="line${x['errors'] > 0 ? ' error' : ''}" onclick="showHideLogs(this)">`;
@@ -108,10 +106,10 @@ function get_status(response, request, server, error, cookies) {
         return s;
     }).join('');
 
-    if (typeof error === "undefined") {
-        error = "";
-    } else {
-        error = `<div class="error">${error}</div>`;
+    let error = "";
+    if (typeof cookies.get('Error') !== "undefined" && cookies.get('Error').length > 0) {
+        error = `<div class="error">${cookies.get('Error')}</div>`;
+        cookies.set('Error', undefined);
     }
 
     let is_authenticated = typeof cookies.get('Login') !== "undefined" && typeof cookies.get('Token') !== undefined;
@@ -159,48 +157,56 @@ function add_test_results(output, issue_url, errors) {
     }
 }
 
-function github_authentication(response, request, server) {
+function redirection_error(response, cookies, error) {
+    cookies.set('Error', error);
+    response.writeHead(302, {'Location': '/'});
+    response.end();
+}
+
+async function github_authentication(response, request, server) {
+    let cookies = utils.get_cookies(request, response, COOKIE_KEYS);
     let code = request.url.searchParams.get('code');
 
     if (code === null || code.length < 1) {
         console.error('Failed authentication attempt...');
-        return get_status(response, request, server, 'No token provided by github...');
+        return redirection_error(response, cookies, 'No token provided by github...');
     }
-    const data = async () => {
-        try {
-            return await axios.post(`${config.GH_URL}/login/oauth/access_token`,
-                                    {'client_id': GITHUB_CLIENT_ID,
-                                     'client_secret': GITHUB_CLIENT_SECRET,
-                                     'code': code},
-                                    {'Content-type': 'application/json',
-                                     'Accept': 'application/json'});
-        } catch (error) {
-            console.error(error);
-            return null;
-        }
-    };
-    if (data.data['error_description'] !== undefined) {
+    let data;
+    try {
+        let res = await axios.post(`${config.GH_URL}/login/oauth/access_token`,
+                                   {'client_id': GITHUB_CLIENT_ID,
+                                    'client_secret': GITHUB_CLIENT_SECRET,
+                                    'code': code},
+                                   {headers: {
+                                     'Content-type': 'application/json',
+                                     'Accept': 'application/json'}
+                                   });
+        await res.data;
+        data = res.data;
+    } catch (err) {
+        let error = `Failed to get access token: ${err}`;
+        console.error(error);
+        return redirection_error(response, cookies, error);
+    }
+    if (data['error_description'] !== undefined) {
         console.error('Failed authentication validation attempt...');
-        return get_status(response, request, server,
-                          `Error from github: ${data.data['error_description']}`);
+        return redirection_error(response, cookies, `Error from github: ${data['error_description']}`);
     }
-    if (data.data['access_token'] === undefined) {
+    if (data['access_token'] === undefined) {
         console.error('Failed authentication validation attempt (missing "access_token" field?)...');
-        return get_status(response, request, server,
-                          'Error from github: missing "access_token" field...');
+        return redirection_error(response, cookies, 'Error from github: missing "access_token" field...');
     }
-    let access_token = data.data['access_token'];
+    let access_token = data['access_token'];
     let login = utils.get_username(access_token);
     if (login === null) {
         console.error('Cannot get username...');
-        return get_status(response, request, server,
-                          'Error from github: missing "access_token" field...');
+        return redirection_error(response, cookies, 'Error from github: missing "access_token" field...');
     }
 
-    let cookies = utils.get_cookies(request, response, COOKIE_KEYS);
     cookies.set('Login', login);
     cookies.set('Token', access_token);
-    return get_status(response, request, server, undefined, cookies);
+    response.writeHead(302, {'Location': '/'});
+    response.end();
 }
 
 function restart(response, request, server) {
@@ -568,7 +574,7 @@ function start_server(argv) {
     };
 
     var server = http.createServer((request, response) => {
-        request.url = m_url.parse('http://a.a' + request.url);
+        request.url = new m_url.URL('http://a.a' + request.url);
         if (URLS.hasOwnProperty(request.url.pathname)) {
             URLS[request.url.pathname](response, request, server);
         } else {
