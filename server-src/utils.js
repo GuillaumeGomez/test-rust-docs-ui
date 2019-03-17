@@ -4,6 +4,10 @@ const config = require('./config.js');
 var Cookies = require('cookies');
 const axios = require('axios');
 
+String.prototype.replaceAll = function(search, replace_with) {
+    return this.split(search).join(replace_with);
+};
+
 function addSlash(s) {
     if (!s.endsWith('/')) {
         return s + '/';
@@ -130,7 +134,7 @@ function add_log(output, level) {
 }
 
 function text_to_html(t) {
-    return t.replace('<', '&lt;').replace('>', '&gt;').replace('\\n', '<br>');
+    return t.replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('\n', '<br>');
 }
 
 module.exports = {

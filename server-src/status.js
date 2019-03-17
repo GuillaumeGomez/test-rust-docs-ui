@@ -97,6 +97,7 @@ header > div, .running, .results, .results > .line {
     display: none;
     background-color: #eaeaea;
     padding: 5px;
+    position: relative;
 }
 .button {
     text-align: center;
@@ -119,8 +120,11 @@ header > div, .running, .results, .results > .line {
 
 function get_admin_js() {
     return `
+String.prototype.replaceAll = function(search, replace_with) {
+    return this.split(search).join(replace_with);
+};
 function clean_text(t) {
-    return t.replace('<', '&lt;').replace('>', '&gt;').replace('\\n', '<br>');
+    return t.replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('\\n', '<br>');
 }
 function ask_restart(elem) {
     elem.style.pointerEvents = "none";
@@ -136,7 +140,6 @@ function ask_restart(elem) {
     xhr.withCredentials = true;
     xhr.send(null);
 }
-
 function ask_update(elem) {
     elem.style.pointerEvents = "none";
     document.getElementById("info").innerHTML = "";
@@ -152,6 +155,27 @@ function ask_update(elem) {
     xhr.open('GET', '/update', true);
     xhr.withCredentials = true;
     xhr.send(null);
+}
+function show_more() {
+    if (this.innerText === "See more") {
+        this.parentElement.style.maxHeight = "initial";
+        this.innerText = "See less";
+    } else {
+        this.parentElement.style.maxHeight = "";
+        this.innerText = "See more";
+    }
+}
+
+var x = Array.prototype.slice.call(document.getElementsByClassName("logs"));
+var but;
+for (var i = 0; i < x.length; ++i) {
+    if (x[i].offsetHeight < x[i].scrollHeight || x[i].offsetWidth < x[i].scrollWidth) {
+        but = document.createElement("div");
+        but.className = "see-more";
+        but.innerText = "See more";
+        but.onclick = show_more;
+        x[i].appendChild(but);
+    }
 }`;
 }
 
@@ -173,6 +197,19 @@ function get_admin_css() {
 .results > .error {
     color: red;
     border-color: red;
+}
+.see-more {
+    position: absolute;
+    width: 64px;
+    text-align: center;
+    right: calc(50vw - 30px);
+    bottom: 3px;
+    padding: 2px;
+    border: 1px solid #000;
+    border-radius: 3px;
+    color: #000;
+    background-color: #fff;
+    cursor: pointer;
 }
 `;
 }

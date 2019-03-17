@@ -68,7 +68,6 @@ async function check_update(response, request) {
 async function get_admin(response, request) {
     let cookies = utils.get_cookies(request, response, COOKIE_KEYS);
     let has_access = await check_rights(cookies.get('Login')).catch(() => {});
-    has_access = true;
 
     if (has_access === true) {
         let logs = [];
@@ -86,7 +85,6 @@ async function get_admin(response, request) {
         response.write(`<html>
 <head>
     <title>rustdoc UI tests - admin</title>${FAVICON_DATA === null ? "" : '<link rel="icon" type="image/png" sizes="32x32" href="/favicon.ico">'}
-    <script>${mstatus.get_admin_js()}</script>
     <style type="text/css">${mstatus.get_status_css()}</style>
     <style type="text/css">${mstatus.get_admin_css()}</style>
 </head>
@@ -103,6 +101,7 @@ async function get_admin(response, request) {
         <div class="title">List of logs</div>
         <div class="results">${logs.join('')}</div>
     </div>
+    <script>${mstatus.get_admin_js()}</script>
 </body>
 </html>`);
     } else {
@@ -316,7 +315,7 @@ function check_signature(req, body) {
         add_warning('No signature check, this is unsafe!');
         return true;
     }
-    let github_webhook_secret = utils.readFile(GITHUB_WEBHOOK_SECRET_PATH).replace('\n', '');
+    let github_webhook_secret = utils.readFile(GITHUB_WEBHOOK_SECRET_PATH).replaceAll('\n', '');
     let hmac = crypto.createHmac('sha1', github_webhook_secret);
     hmac.update(JSON.stringify(body));
     let calculatedSignature = 'sha1=' + hmac.digest('hex');
