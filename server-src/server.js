@@ -10,16 +10,19 @@ const fs = require('fs');
 const axios = require('axios');
 const mstatus = require('./status.js');
 const m_url = require('url');
+const add_log = utils.add_log;
+const add_warning = utils.add_warning;
+const add_error = utils.add_error;
 
 var DOC_UI_RUNS = {};
 var TESTS_RESULTS = [];
 var RUNNING_TESTS = [];
 var FAVICON_DATA = null;
-
 var GITHUB_WEBHOOK_SECRET_PATH = null;
 var GITHUB_CLIENT_ID = null;
 var GITHUB_CLIENT_SECRET = null;
 var COOKIE_KEYS = null;
+global.LOGS = [];
 
 function make_link(url, text, blank, _class) {
     if (typeof _class !== "undefined") {
@@ -65,13 +68,27 @@ async function check_update(response, request) {
 async function get_admin(response, request) {
     let cookies = utils.get_cookies(request, response, COOKIE_KEYS);
     let has_access = await check_rights(cookies.get('Login')).catch(() => {});
+    has_access = true;
 
     if (has_access === true) {
+        let logs = [];
+        for (let i = 0; i < LOGS.length; ++i) {
+            let log = LOGS[i];
+            let level = '';
+            if (log['level'] === config.LOG_ERROR) {
+                level = ' error';
+            } else if (log['level'] === config.LOG_WARNING) {
+                level = ' warning';
+            }
+            logs.push(`<code class="logs${level}">${utils.text_to_html(log['text'])}</code>`);
+        }
+
         response.write(`<html>
 <head>
     <title>rustdoc UI tests - admin</title>${FAVICON_DATA === null ? "" : '<link rel="icon" type="image/png" sizes="32x32" href="/favicon.ico">'}
     <script>${mstatus.get_admin_js()}</script>
     <style type="text/css">${mstatus.get_status_css()}</style>
+    <style type="text/css">${mstatus.get_admin_css()}</style>
 </head>
 <body>
     <header>
@@ -83,6 +100,8 @@ async function get_admin(response, request) {
         <div id="info"></div>
         <div class="button" onclick="ask_update(this)">Update server</div>
         <div class="button" onclick="ask_restart(this)">Restart server</div>
+        <div class="title">List of logs</div>
+        <div class="results">${logs.join('')}</div>
     </div>
 </body>
 </html>`);
@@ -103,7 +122,7 @@ async function get_status(response, request, server) {
         if (x['errors'] > 0) {
             s += `<span class="errors">${x['errors']}</span>`;
         }
-        s += `<code class="logs" onclick="preventEv(event)">${x['text'].replace('<', '&lt;').replace('>', '&gt;').replace('\n', '<br>')}</code>`;
+        s += `<code class="logs" onclick="preventEv(event)">${utils.text_to_html(x['text'])}</code>`;
         s += '</div>';
         return s;
     }).join('');
@@ -154,9 +173,9 @@ function add_test_results(output, issue_url, errors) {
     }
     TESTS_RESULTS.push({'url': issue_url, 'text': output, 'errors': errors});
     try {
-        utils.writeObjectToFile(config.TESTS_RESULTS_FILE, TESTS_RESULTS);
+        utils.writeObjectToFile(config.TESTS_RESULTS_FILE, {'results': TESTS_RESULTS});
     } catch(err) {
-        console.error(`Couldn't save to "${config.TESTS_RESULTS_FILE}": ` + err);
+        add_error(`Couldn't save to "${config.TESTS_RESULTS_FILE}": ` + err);
     }
 }
 
@@ -171,7 +190,7 @@ async function github_authentication(response, request, server) {
     let code = request.url.searchParams.get('code');
 
     if (code === null || code.length < 1) {
-        console.error('Failed authentication attempt...');
+        add_error('Failed authentication attempt...');
         return redirection_error(response, cookies, 'No token provided by github...');
     }
     let data;
@@ -188,21 +207,21 @@ async function github_authentication(response, request, server) {
         data = res.data;
     } catch (err) {
         let error = `Failed to get access token: ${err}`;
-        console.error(error);
+        add_error(error);
         return redirection_error(response, cookies, error);
     }
     if (data['error_description'] !== undefined) {
-        console.error('Failed authentication validation attempt...');
+        add_error('Failed authentication validation attempt...');
         return redirection_error(response, cookies, `Error from github: ${data['error_description']}`);
     }
     if (data['access_token'] === undefined) {
-        console.error('Failed authentication validation attempt (missing "access_token" field?)...');
+        add_error('Failed authentication validation attempt (missing "access_token" field?)...');
         return redirection_error(response, cookies, 'Error from github: missing "access_token" field...');
     }
     let access_token = data['access_token'];
     let login = await utils.get_username(access_token).catch(() => {});
     if (login === null || typeof login !== "string") {
-        console.error('Cannot get username...');
+        add_error('Cannot get username...');
         return redirection_error(response, cookies, 'Error from github: missing "access_token" field...');
     }
 
@@ -215,7 +234,7 @@ async function github_authentication(response, request, server) {
 function restart(response, request, server) {
     const text = 'shutting down server...';
     response.end(text);
-    console.log(text);
+    add_log(text);
     server.close();
     utils.updateRepository();
     process.exit(0);
@@ -274,7 +293,7 @@ function parseData(response, request, server, func) {
     let body = [];
 
     request.on('error', (err) => {
-        console.error(err);
+        add_error(err);
     }).on('data', (chunk) => {
         body.push(chunk);
     }).on('end', () => {
@@ -294,7 +313,7 @@ function parseData(response, request, server, func) {
 
 function check_signature(req, body) {
     if (GITHUB_WEBHOOK_SECRET_PATH === null) {
-        console.warn('No signature check, this is unsafe!');
+        add_warning('No signature check, this is unsafe!');
         return true;
     }
     let github_webhook_secret = utils.readFile(GITHUB_WEBHOOK_SECRET_PATH).replace('\n', '');
@@ -303,6 +322,44 @@ function check_signature(req, body) {
     let calculatedSignature = 'sha1=' + hmac.digest('hex');
 
     return req.headers['x-hub-signature'] === calculatedSignature;
+}
+
+function run_tests(id, url, response) {
+    add_log(`Starting tests for ${url}`);
+    let ret = utils.installRustdoc(id);
+    if (ret !== true) {
+        add_error(`Cannot start tests for ${url}: ${ret}`)
+        response.end("An error occurred:\n```text\n" + ret + "\n````");
+        return;
+    }
+    tester.runTests(["", "", "rustdoc", id]).then(x => {
+        let [output, errors] = x;
+        response.statusCode = 200;
+        if (errors > 0) {
+            let failure = "failure";
+            if (errors > 1) {
+                failure = "failures";
+            }
+            add_log(`Tests failed for ${url}: ${output}`);
+            response.end("Rustdoc-UI tests failed (" + errors + " " + failure +
+                         ")...\n```text\n" + output + "\n```");
+        } else {
+            add_log(`Tests ended successfully for ${url}`);
+            response.end("Rustdoc-UI tests passed!\n```text\n" + output + "\n```");
+        }
+        add_test_results(output, url, errors);
+
+        // cleanup part
+        DOC_UI_RUNS[url] = undefined;
+        utils.uninstallRustdoc(id);
+    }).catch(err => {
+        add_log(`Tests failed for ${url}: ${err}`);
+        response.end("A test error occurred:\n```text\n" + err + "\n```");
+
+        // cleanup part
+        DOC_UI_RUNS[url] = undefined;
+        utils.uninstallRustdoc(id);
+    });
 }
 
 // https://developer.github.com/v3/activity/events/types/#issuecommentevent
@@ -341,37 +398,7 @@ async function github_event(response, request, server, body) {
                 }
             }
             if (id !== null) {
-                let ret = utils.installRustdoc(id);
-                if (ret !== true) {
-                    response.end("An error occurred:\n```text\n" + ret + "\n````");
-                    return;
-                }
-                ;
-                tester.runTests(["", "", "rustdoc", id]).then(x => {
-                    let [output, errors] = x;
-                    response.statusCode = 200;
-                    if (errors > 0) {
-                        let failure = "failure";
-                        if (errors > 1) {
-                            failure = "failures";
-                        }
-                        response.end("Rustdoc-UI tests failed (" + errors + " " + failure +
-                                     ")...\n```text\n" + output + "\n```");
-                    } else {
-                        response.end("Rustdoc-UI tests passed!\n```text\n" + output + "\n```");
-                    }
-                    add_test_results(output, content['issue']['url'], errors);
-
-                    // cleanup part
-                    DOC_UI_RUNS[content['issue']['url']] = undefined;
-                    utils.uninstallRustdoc(id);
-                }).catch(err => {
-                    response.end("A test error occurred:\n```text\n" + err + "\n```");
-
-                    // cleanup part
-                    DOC_UI_RUNS[content['issue']['url']] = undefined;
-                    utils.uninstallRustdoc(id);
-                });
+                run_tests(id, content['issue']['url'], response);
                 return;
             }
         }
@@ -380,6 +407,7 @@ async function github_event(response, request, server, body) {
         let run_doc_ui = false;
         let need_restart = false;
         let need_update = false;
+        let specific_commit = null;
         for (let i = 0; i < msg.length; ++i) {
             let line = msg[i];
             if (line.trim().startsWith("@" + config.BOT_NAME) === false) {
@@ -390,6 +418,12 @@ async function github_event(response, request, server, body) {
                 let cmd = parts[x].toLowerCase();
                 if (cmd === "run-doc-ui") {
                     run_doc_ui = true;
+                    if (x + 1 < parts.length &&
+                        {"restart": 0, "update": 0, "run-doc-ui": 0}[parts[x + 1]] === undefined) {
+                        // we have a commit!
+                        x += 1;
+                        specific_commit = parts[x];
+                    }
                 } else if (cmd === "restart") {
                     need_restart = true;
                 } else if (cmd === "update") {
@@ -402,59 +436,67 @@ async function github_event(response, request, server, body) {
         if (need_restart === true || run_doc_ui === true || need_update === true) {
             let r = await check_rights(content['comment']['user']['login']).catch(() => {});
             if (r !== true) {
-                console.log('github_event: missing rights for ' + content['comment']['user']['login']);
+                add_log(`github_event: missing rights for ${content['comment']['user']['login']} on ${content['issue']['url']}`);
                 response.end();
                 return;
             }
         }
         if (need_update === true) {
+            add_log(`Received "update" command from ${content['issue']['url']}`);
             utils.updateRepository();
         }
         if (need_restart === true) {
+            add_log(`Received "restart" command from ${content['issue']['url']}`);
             restart(response, request, server);
+            return;
         }
         if (run_doc_ui === true) {
+            add_log(`Received "run-doc-ui" command from ${content['issue']['url']}`);
             // We wait for the rustdoc build to end before trying to get it.
             DOC_UI_RUNS[content['issue']['url']] = false;
+            if (specific_commit !== null) {
+                run_tests(specific_commit, content['issue']['url'], response);
+                return;
+            }
         }
 
         response.end();
-    } catch (e) {
-        console.error('github_event: ', e);
+    } catch (err) {
+        add_error(`github_event error: ${err}`);
         response.end("Invalid github data");
     }
 }
 
 function readySubmodule(submodule_path) {
-    console.log("=> Getting components ready...");
+    add_log("=> Getting components ready...");
     try {
         execFileSync("git", ["submodule", "update", "--init"]);
     } catch(err) {
-        console.error("'git submodule update --init' failed: " + err);
+        add_error(`'git submodule update --init' failed: ${err}`);
     }
     try {
         var x = '/' + __dirname.split('/').filter(x => x.length > 0).slice(0, 2).join('/');
         x += '/.cargo/bin/cargo';
         execFileSync(x, ["build", "--release"], { cwd: submodule_path });
     } catch(err) {
-        console.error("'cargo build --release' failed: " + err);
+        add_error(`'cargo build --release' failed: ${err}`);
     }
-    console.log("<= Done!");
+    add_log("<= Done!");
 }
 
 function load_github_appli_credentials() {
-    console.log('=> Getting github app credentials...');
+    add_log('=> Getting github app credentials...');
     let content;
     try {
         content = utils.readFile(config.GITHUB_APP_CREDENTIALS_FILE);
     } catch(err) {
-        console.warn(`Couldn't read "${config.GITHUB_APP_CREDENTIALS_FILE}": ${err}`);
+        add_error(`Couldn't read "${config.GITHUB_APP_CREDENTIALS_FILE}": ${err}`);
         return false;
     }
     try {
         content = JSON.parse(content);
     } catch(err) {
-        console.warn(`Invalid JSON format in "${config.GITHUB_APP_CREDENTIALS_FILE}": ${err}`);
+        add_error(`Invalid JSON format in "${config.GITHUB_APP_CREDENTIALS_FILE}": ${err}`);
         return false;
     }
     if (content['GITHUB_CLIENT_ID'] !== undefined) {
@@ -464,27 +506,27 @@ function load_github_appli_credentials() {
         GITHUB_CLIENT_SECRET = content['GITHUB_CLIENT_SECRET'];
     }
     if (GITHUB_CLIENT_SECRET === null || GITHUB_CLIENT_ID === null) {
-        console.warn(`"${config.GITHUB_APP_CREDENTIALS_FILE}" needs "GITHUB_CLIENT_ID" and "GITHUB_CLIENT_SECRET" keys`);
+        add_error(`"${config.GITHUB_APP_CREDENTIALS_FILE}" needs "GITHUB_CLIENT_ID" and "GITHUB_CLIENT_SECRET" keys`);
         return false;
     }
     return true;
 }
 
 function load_favicon_data() {
-    console.log('=> Loading favicon file...');
+    add_log('=> Loading favicon file...');
     let content;
     try {
         content = utils.readFile(config.FAVICON_FILE, null);
     } catch(err) {
-        console.warn(`Couldn't read "${config.FAVICON_FILE}": ${err}`);
-        console.log("<= no favicon loaded...");
+        add_error(`Couldn't read "${config.FAVICON_FILE}": ${err}`);
+        add_log("<= no favicon loaded...");
     }
     FAVICON_DATA = content;
-    console.log("<= favicon loaded!");
+    add_log("<= favicon loaded!");
 }
 
 function load_cookie_keys() {
-    console.log('=> Loading cookie keys...');
+    add_log('=> Loading cookie keys...');
     let content;
     try {
         content = utils.readFile(config.COOKIE_KEYS_FILE, null);
@@ -513,6 +555,46 @@ function load_cookie_keys() {
         }
     }
     COOKIE_KEYS = content['COOKIE_KEYS'];
+    add_log('<= Cookie keys loaded!')
+}
+
+function load_logs() {
+    console.log('=> Loading previous logs...');
+    let content;
+    try {
+        content = utils.readFile(config.LOGS_FILE, null);
+    } catch(err) {
+        add_error(`Couldn't read "${config.LOGS_FILE}": ${err}`);
+        return false;
+    }
+    try {
+        content = JSON.parse(content);
+    } catch(err) {
+        add_error(`"${config.LOGS_FILE}" file isn't valid JSON: ${err}`);
+        return false;
+    }
+    if (content['LOGS'] === undefined) {
+        add_error(`Missing "LOGS" in "${config.LOGS_FILE}"...`);
+        return false;
+    }
+    if (Array.isArray(content['LOGS']) === false) {
+        add_error(`"LOGS" value must be an array!`);
+        return false;
+    }
+    LOGS = content['LOGS'];
+    return true;
+}
+
+function load_test_results() {
+    try {
+        TESTS_RESULTS = JSON.parse(utils.readFile(config.TESTS_RESULTS_FILE))['results'];
+        if (Array.isArray(TESTS_RESULTS) !== true) {
+            add_warning(`"${config.TESTS_RESULTS_FILE}" file doesn't have the expected format...`);
+            TESTS_RESULTS = [];
+        }
+    } catch(err) {
+        add_warning(`Couldn't parse/read "${config.TESTS_RESULTS_FILE}", ignoring it...`);
+    }
 }
 
 function start_server(argv) {
@@ -520,8 +602,15 @@ function start_server(argv) {
         console.error('node server.rs [github secret webhook path|--ignore-webhook-secret]!');
         process.exit(1);
     }
+
+    if (load_logs() !== true) {
+        add_log("<= previous logs couldn't been loaded...");
+    } else {
+        add_log("<= previous logs loaded!");
+    }
+
     if (argv[2] === '--ignore-webhook-secret') {
-        console.warn('=> Disabling github webhook signature check. This is unsafe!');
+        add_warning('=> Disabling github webhook signature check. This is unsafe!');
     } else {
         GITHUB_WEBHOOK_SECRET_PATH = argv[2];
 
@@ -529,27 +618,19 @@ function start_server(argv) {
             console.error('Invalid path received: "' + GITHUB_WEBHOOK_SECRET_PATH + '"');
             process.exit(2);
         }
-        console.log('=> Found github-webhook-secret file');
+        add_log('=> Found github-webhook-secret file');
     }
 
     load_cookie_keys();
 
     readySubmodule(utils.getCurrentDir() + "rustup-toolchain-install-master");
 
-    try {
-        TESTS_RESULTS = JSON.parse(utils.readFile(config.TESTS_RESULTS_FILE));
-        if (Array.isArray(TESTS_RESULTS) !== true) {
-            console.error(`"${config.TESTS_RESULTS_FILE}" file doesn't have the expected format...`);
-            TESTS_RESULTS = [];
-        }
-    } catch(err) {
-        console.warn(`Couldn't parse/read "${config.TESTS_RESULTS_FILE}", ignoring it...`);
-    }
+    load_test_results();
 
     if (load_github_appli_credentials() !== true) {
-        console.log('<= github authentication is deactivated...');
+        add_log('<= github authentication is deactivated...');
     } else {
-        console.log('<= github authentication is activated!')
+        add_log('<= github authentication is activated!');
     }
     load_favicon_data();
 
@@ -569,15 +650,19 @@ function start_server(argv) {
     };
 
     var server = http.createServer((request, response) => {
-        request.url = new m_url.URL('http://a.a' + request.url);
-        if (URLS.hasOwnProperty(request.url.pathname)) {
-            URLS[request.url.pathname](response, request, server);
-        } else {
-            unknown_url(response, request);
+        try {
+            request.url = new m_url.URL('http://a.a' + request.url);
+            if (URLS.hasOwnProperty(request.url.pathname)) {
+                URLS[request.url.pathname](response, request, server);
+            } else {
+                unknown_url(response, request);
+            }
+        } catch(err) {
+            add_error(`An error occurred: ${err}`);
         }
     });
     server.listen(config.PORT);
-    console.log("server started on 0.0.0.0:" + config.PORT);
+    add_log("server started on 0.0.0.0:" + config.PORT);
 }
 
 if (require.main === module) {
