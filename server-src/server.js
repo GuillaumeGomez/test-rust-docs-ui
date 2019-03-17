@@ -224,6 +224,7 @@ async function github_authentication(response, request, server) {
         return redirection_error(response, cookies, 'Error from github: missing "access_token" field...');
     }
 
+    add_log(`"${login}" logged in from "${request.connection.remoteAddress}"`)
     cookies.set('Login', login);
     cookies.set('Token', access_token);
     response.writeHead(302, {'Location': '/'});
