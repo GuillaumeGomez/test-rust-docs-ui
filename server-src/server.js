@@ -324,6 +324,44 @@ function check_signature(req, body) {
     return req.headers['x-hub-signature'] === calculatedSignature;
 }
 
+function run_tests(id, url, response) {
+    add_log(`Starting tests for ${url}`);
+    let ret = utils.installRustdoc(id);
+    if (ret !== true) {
+        add_error(`Cannot start tests for ${url}: ${ret}`)
+        response.end("An error occurred:\n```text\n" + ret + "\n````");
+        return;
+    }
+    tester.runTests(["", "", "rustdoc", id]).then(x => {
+        let [output, errors] = x;
+        response.statusCode = 200;
+        if (errors > 0) {
+            let failure = "failure";
+            if (errors > 1) {
+                failure = "failures";
+            }
+            add_log(`Tests failed for ${url}: ${output}`);
+            response.end("Rustdoc-UI tests failed (" + errors + " " + failure +
+                         ")...\n```text\n" + output + "\n```");
+        } else {
+            add_log(`Tests ended successfully for ${url}`);
+            response.end("Rustdoc-UI tests passed!\n```text\n" + output + "\n```");
+        }
+        add_test_results(output, url, errors);
+
+        // cleanup part
+        DOC_UI_RUNS[url] = undefined;
+        utils.uninstallRustdoc(id);
+    }).catch(err => {
+        add_log(`Tests failed for ${url}: ${err}`);
+        response.end("A test error occurred:\n```text\n" + err + "\n```");
+
+        // cleanup part
+        DOC_UI_RUNS[url] = undefined;
+        utils.uninstallRustdoc(id);
+    });
+}
+
 // https://developer.github.com/v3/activity/events/types/#issuecommentevent
 async function github_event(response, request, server, body) {
     if (typeof body === 'undefined') {
@@ -360,37 +398,7 @@ async function github_event(response, request, server, body) {
                 }
             }
             if (id !== null) {
-                let ret = utils.installRustdoc(id);
-                if (ret !== true) {
-                    response.end("An error occurred:\n```text\n" + ret + "\n````");
-                    return;
-                }
-                ;
-                tester.runTests(["", "", "rustdoc", id]).then(x => {
-                    let [output, errors] = x;
-                    response.statusCode = 200;
-                    if (errors > 0) {
-                        let failure = "failure";
-                        if (errors > 1) {
-                            failure = "failures";
-                        }
-                        response.end("Rustdoc-UI tests failed (" + errors + " " + failure +
-                                     ")...\n```text\n" + output + "\n```");
-                    } else {
-                        response.end("Rustdoc-UI tests passed!\n```text\n" + output + "\n```");
-                    }
-                    add_test_results(output, content['issue']['url'], errors);
-
-                    // cleanup part
-                    DOC_UI_RUNS[content['issue']['url']] = undefined;
-                    utils.uninstallRustdoc(id);
-                }).catch(err => {
-                    response.end("A test error occurred:\n```text\n" + err + "\n```");
-
-                    // cleanup part
-                    DOC_UI_RUNS[content['issue']['url']] = undefined;
-                    utils.uninstallRustdoc(id);
-                });
+                run_tests(id, content['issue']['url'], response);
                 return;
             }
         }
@@ -399,6 +407,7 @@ async function github_event(response, request, server, body) {
         let run_doc_ui = false;
         let need_restart = false;
         let need_update = false;
+        let specific_commit = null;
         for (let i = 0; i < msg.length; ++i) {
             let line = msg[i];
             if (line.trim().startsWith("@" + config.BOT_NAME) === false) {
@@ -409,6 +418,12 @@ async function github_event(response, request, server, body) {
                 let cmd = parts[x].toLowerCase();
                 if (cmd === "run-doc-ui") {
                     run_doc_ui = true;
+                    if (x + 1 < parts.length &&
+                        {"restart": 0, "update": 0, "run-doc-ui": 0}[parts[x + 1]] === undefined) {
+                        // we have a commit!
+                        x += 1;
+                        specific_commit = parts[x];
+                    }
                 } else if (cmd === "restart") {
                     need_restart = true;
                 } else if (cmd === "update") {
@@ -421,20 +436,28 @@ async function github_event(response, request, server, body) {
         if (need_restart === true || run_doc_ui === true || need_update === true) {
             let r = await check_rights(content['comment']['user']['login']).catch(() => {});
             if (r !== true) {
-                add_log(`github_event: missing rights for ${content['comment']['user']['login']}`);
+                add_log(`github_event: missing rights for ${content['comment']['user']['login']} on ${content['issue']['url']}`);
                 response.end();
                 return;
             }
         }
         if (need_update === true) {
+            add_log(`Received "update" command from ${content['issue']['url']}`);
             utils.updateRepository();
         }
         if (need_restart === true) {
+            add_log(`Received "restart" command from ${content['issue']['url']}`);
             restart(response, request, server);
+            return;
         }
         if (run_doc_ui === true) {
+            add_log(`Received "run-doc-ui" command from ${content['issue']['url']}`);
             // We wait for the rustdoc build to end before trying to get it.
             DOC_UI_RUNS[content['issue']['url']] = false;
+            if (specific_commit !== null) {
+                run_tests(specific_commit, content['issue']['url'], response);
+                return;
+            }
         }
 
         response.end();
@@ -536,7 +559,7 @@ function load_cookie_keys() {
 }
 
 function load_logs() {
-    add_log('=> Loading previous logs...');
+    console.log('=> Loading previous logs...');
     let content;
     try {
         content = utils.readFile(config.LOGS_FILE, null);
