@@ -7,6 +7,8 @@ module.exports = {
     ],
     MAX_TEST_RESULTS: 100,
     TESTS_RESULTS_FILE: 'test_results.json',
+    MAX_LOGS: 200,
+    LOGS_FILE: 'logs.json',
     TEAMS_URL: 'https://team-api.infra.rust-lang.org/v1/teams.json',
     COOKIE_KEYS_FILE: 'cookie-keys.json',
     GITHUB_APP_CREDENTIALS_FILE: 'github_credentials.json',
@@ -14,4 +16,7 @@ module.exports = {
     GH_URL: 'https://github.com',
     GH_API_URL: 'https://api.github.com',
     USERS_FILE: 'users.json',
+    LOG_ERROR: 0,
+    LOG_WARNING: 1,
+    LOG_NORMAL: 2,
 };

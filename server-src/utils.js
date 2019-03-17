@@ -23,7 +23,7 @@ function updateRepository() {
     try {
         return execFileSync("git", ["pull", "origin", "master"]);
     } catch(err) {
-        console.error("Cannot update server sources: '" + err + "'");
+        add_error("Cannot update server sources: '" + err + "'");
         return "";
     }
 }
@@ -40,7 +40,7 @@ function writeToFile(filePath, content) {
 }
 
 function writeObjectToFile(filePath, object) {
-    return writeToFile(JSON.stringify(object));
+    return writeToFile(filePath, JSON.stringify(object));
 }
 
 function get_cookies(req, res, cookie_keys) {
@@ -54,7 +54,8 @@ function installRustdoc(id) {
     try {
         execFileSync(exec_path, [id]);
     } catch(err) {
-        return "Cannot install rustdoc from '" + id + "'";
+        add_error(`Cannot install rustdoc from "${id}"`);
+        return false;
     }
     return true;
 }
@@ -63,7 +64,7 @@ function uninstallRustdoc(id) {
     try {
         execFileSync("rustup", ["uninstall", id]);
     } catch(err) {
-        return "Cannot uninstall rustdoc from '" + id + "'";
+        add_error(`Cannot uninstall rustdoc from "${id}"`);
     }
 }
 
@@ -79,19 +80,57 @@ async function get_username(access_token) {
         await res.data;
         content = res.data;
     } catch (error) {
-        console.error(`http error in get_username: ${error}`);
+        add_error(`http error in get_username: ${error}`);
         return null;
     }
     try {
         if (content['login'] === undefined) {
-            console.log(`No "login" provided in get_username for token ${access_token}...: ${content}`);
+            add_log(`No "login" provided in get_username for token ${access_token}...: ${content}`);
             return null;
         }
         return content['login'];
     } catch(err) {
-        console.error(`An error occurred in get_username for token ${access_token}: ${err}`);
+        add_error(`An error occurred in get_username for token ${access_token}: ${err}`);
         return null;
     }
+}
+
+function add_error(output) {
+    add_log(output, config.ERROR);
+}
+
+function add_warning(output) {
+    add_log(output, config.LOG_WARNING);
+}
+
+function push_to_logs(output, level) {
+    if (LOGS.length >= config.MAX_LOGS) {
+        LOGS.shift();
+    }
+    LOGS.push({'text': output, 'level': level});
+}
+
+function add_log(output, level) {
+    let disp = console.log;
+    if (level === config.LOG_ERROR) {
+        disp = console.error;
+    } else if (level === config.LOG_WARNING) {
+        disp = console.warn;
+    } else {
+        level = config.LOG_NORMAL;
+    }
+    disp(output);
+
+    push_to_logs(output, level);
+    try {
+        writeObjectToFile(config.LOGS_FILE, {'LOGS': LOGS});
+    } catch(err) {
+        push_to_logs(`Couldn't save to "${config.LOGS_FILE}": ${err}`, config.LOG_ERROR);
+    }
+}
+
+function text_to_html(t) {
+    return t.replace('<', '&lt;').replace('>', '&gt;').replace('\\n', '<br>');
 }
 
 module.exports = {
@@ -104,4 +143,8 @@ module.exports = {
     installRustdoc: installRustdoc,
     uninstallRustdoc: uninstallRustdoc,
     get_username: get_username,
+    add_error: add_error,
+    add_warning: add_warning,
+    add_log: add_log,
+    text_to_html: text_to_html,
 };

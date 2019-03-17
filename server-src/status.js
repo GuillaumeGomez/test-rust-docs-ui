@@ -93,7 +93,7 @@ header > div, .running, .results, .results > .line {
     text-align: center;
     padding: 1px;
 }
-.line > .logs {
+.logs {
     display: none;
     background-color: #eaeaea;
     padding: 5px;
@@ -155,8 +155,31 @@ function ask_update(elem) {
 }`;
 }
 
+function get_admin_css() {
+    return `
+.results > .logs {
+    display: block;
+    max-height: 100px;
+    overflow: hidden;
+    border: 1px solid #3559c5;
+    color: #3559c5;
+    border-radius: 3px;
+}
+.results > .warning {
+    color: #de8605;
+    border-color: #de8605;
+    background-color: #e6e6e6;
+}
+.results > .error {
+    color: red;
+    border-color: red;
+}
+`;
+}
+
 module.exports = {
     get_status_css: get_status_css,
     get_status_js: get_status_js,
     get_admin_js: get_admin_js,
+    get_admin_css: get_admin_css,
 };
