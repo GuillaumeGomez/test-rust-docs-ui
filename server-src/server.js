@@ -586,6 +586,7 @@ function load_logs() {
 }
 
 function load_test_results() {
+    add_log("=> Loading test results...");
     try {
         TESTS_RESULTS = JSON.parse(utils.readFile(config.TESTS_RESULTS_FILE))['results'];
         if (Array.isArray(TESTS_RESULTS) !== true) {
@@ -593,8 +594,10 @@ function load_test_results() {
             TESTS_RESULTS = [];
         }
     } catch(err) {
-        add_warning(`Couldn't parse/read "${config.TESTS_RESULTS_FILE}", ignoring it...`);
+        add_warning(`<= Couldn't parse/read "${config.TESTS_RESULTS_FILE}", ignoring it...`);
+        return;
     }
+    add_log("<= Test results loaded!");
 }
 
 function start_server(argv) {
