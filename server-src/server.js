@@ -71,7 +71,7 @@ async function get_admin(response, request) {
 
     if (has_access === true) {
         let logs = [];
-        for (let i = 0; i < LOGS.length; ++i) {
+        for (let i = LOGS.length - 1; i >= 0; --i) {
             let log = LOGS[i];
             let level = '';
             if (log['level'] === config.LOG_ERROR) {
