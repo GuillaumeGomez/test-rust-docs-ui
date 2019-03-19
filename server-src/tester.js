@@ -50,7 +50,7 @@ function removeFolder(folderPath) {
     return {};
 }
 
-function save_failure(folderIn, newImage, originalImage, test_id, runId) {
+function save_failure(folderIn, newImage, originalImage, runId) {
     if (fs.existsSync(config.FAILURES_FOLDER) === false) {
         // We cannot save the failures...
         return false;
@@ -152,10 +152,14 @@ async function main(argv) {
                 await page.waitFor(100);
             }
             if (error_log.length > 0) {
+                logs = appendLog(logs, 'FAILED', true);
+                logs = appendLog(logs, loaded[i]["file"] + " output:\n" + err + '\n');
+                failures += 1;
                 continue;
             }
 
-            var newImage = TEST_FOLDER + loaded[i]["file"] + `-${runId}.png`;
+            var imageShort = loaded[i]["file"].slice(0, loaded[i]["file"].length - 5);
+            var newImage = TEST_FOLDER + imageShort + `-${runId}.png`;
             await page.screenshot({
                 path: newImage,
                 fullPage: true,
@@ -174,7 +178,7 @@ async function main(argv) {
             if (comparePixels(PNG.load(newImage).imgData,
                               PNG.load(originalImage).imgData) === false) {
                 failures += 1;
-                let saved = save_failure(TEST_FOLDER, loaded[i]["file"] + `-${runId}.png`,
+                let saved = save_failure(TEST_FOLDER, imageShort + `-${runId}.png`,
                                          loaded[i]["file"], runId);
                 if (saved === true) {
                     logs = appendLog(logs,
