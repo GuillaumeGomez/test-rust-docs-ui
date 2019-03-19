@@ -159,8 +159,7 @@ async function main(argv) {
                 continue;
             }
 
-            var imageShort = loaded[i]["file"].slice(0, loaded[i]["file"].length - 5);
-            var newImage = `${TEST_FOLDER}${imageShort}-${runId}.png`;
+            var newImage = `${TEST_FOLDER}${loaded[i]["file"]}-${runId}.png`;
             await page.screenshot({
                 path: newImage,
                 fullPage: true,
@@ -179,12 +178,12 @@ async function main(argv) {
             if (comparePixels(PNG.load(newImage).imgData,
                               PNG.load(originalImage).imgData) === false) {
                 failures += 1;
-                let saved = save_failure(TEST_FOLDER, imageShort + `-${runId}.png`,
+                let saved = save_failure(TEST_FOLDER, loaded[i]["file"] + `-${runId}.png`,
                                          loaded[i]["file"] + ".png", runId);
                 if (saved === true) {
                     logs = appendLog(logs,
                                      'FAILED (images "' +
-                                     make_url(`${imageShort}-${runId}.png`, runId) +
+                                     make_url(`${loaded[i]["file"]}-${runId}.png`, runId) +
                                      '" and "' + make_url(loaded[i]["file"] + '.png', runId) +
                                      '" are different)', true);
                 } else {
