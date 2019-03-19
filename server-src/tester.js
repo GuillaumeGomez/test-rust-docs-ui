@@ -15,6 +15,8 @@ const PNG = require('png-js');
 const parser = require('./parser.js');
 const spawnSync = require('child_process').spawnSync;
 const utils = require('./utils.js');
+const add_warn = utils.add_warning;
+const config = require('./config.js');
 
 const TEST_FOLDER = 'ui-tests/';
 
@@ -46,6 +48,35 @@ function removeFolder(folderPath) {
         return {"error": e.toString()};
     }
     return {};
+}
+
+function save_failure(folderIn, newImage, originalImage, test_id, runId) {
+    if (fs.existsSync(config.FAILURES_FOLDER) === false) {
+        // We cannot save the failures...
+        return false;
+    }
+    if (fs.existsSync(config.FAILURES_FOLDER + runId) === false) {
+        try {
+            fs.mkdirSync(config.FAILURES_FOLDER + runId);
+        } catch(err) {
+            add_warn(`Error while trying to make "${config.FAILURES_FOLDER + runId}": ${err}`);
+            // Failed to create folder to save failures...
+            return false;
+        }
+    }
+    try {
+        fs.renameSync(folderIn + newImage, config.FAILURES_FOLDER + runId + '/');
+        fs.renameSync(folderIn + originalImage, config.FAILURES_FOLDER + runId + '/');
+    } catch(err) {
+        add_warn(`Error while trying to move files: "${err}"`);
+        // failed to move files...
+        return false;
+    }
+    return true;
+}
+
+function make_url(img) {
+    return config.SERVER_URL + config.FAILURES_FOLDER + img;
 }
 
 async function main(argv) {
@@ -143,8 +174,17 @@ async function main(argv) {
             if (comparePixels(PNG.load(newImage).imgData,
                               PNG.load(originalImage).imgData) === false) {
                 failures += 1;
-                logs = appendLog(logs, 'FAILED (images "' + newImage + '" and "' + originalImage +
-                                       '" are different)', true);
+                let saved = save_failure(TEST_FOLDER, loaded[i]["file"] + `-${runId}.png`,
+                                         loaded[i]["file"], runId);
+                if (saved === true) {
+                    logs = appendLog(logs,
+                                     'FAILED (images "' + newImage + '" and "' +
+                                     originalImage + '" are different)', true);
+                } else {
+                    logs = appendLog(logs,
+                                     'FAILED (images "' + newImage + '" and "' +
+                                     originalImage + '" are different)', true);
+                }
                 continue;
             }
             // If everything worked as expected, we can remove the generated image.

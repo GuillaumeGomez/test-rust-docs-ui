@@ -16,7 +16,9 @@ module.exports = {
     GH_URL: 'https://github.com',
     GH_API_URL: 'https://api.github.com',
     USERS_FILE: 'users.json',
+    FAILURES_FOLDER: 'failures/',
     LOG_ERROR: 0,
     LOG_WARNING: 1,
     LOG_NORMAL: 2,
+    SERVER_URL: 'https://puppeteer.infra.rust-lang.org/',
 };

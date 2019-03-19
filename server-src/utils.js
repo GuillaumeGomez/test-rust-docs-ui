@@ -151,4 +151,5 @@ module.exports = {
     add_warning: add_warning,
     add_log: add_log,
     text_to_html: text_to_html,
+    writeObjectToFile: writeObjectToFile,
 };

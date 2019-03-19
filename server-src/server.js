@@ -601,6 +601,42 @@ function load_test_results() {
     add_log("<= Test results loaded!");
 }
 
+function build_failures_dir() {
+    add_log('=> Creating build failures folder...');
+    if (fs.existsSync(config.FAILURES_FOLDER) === false) {
+        try {
+            fs.mkdirSync(config.FAILURES_FOLDER);
+        } catch(err) {
+            add_error('<= Failed to create build failures folder...');
+            return;
+        }
+    }
+    add_log('<= Done!');
+}
+
+function try_to_get_image(response, request) {
+    let filepath = request.url;
+    if (filepath.startsWith('/')) {
+        filepath = filepath.slice(1);
+    }
+    if (fs.existsFileSync(filepath) === false) {
+        return unknown_url(response, request);
+    }
+    if (filepath.endsWith('.png')) {
+        response.setHeader('Content-Type', 'image/png');
+    } else {
+        response.setHeader('Content-Type', 'image/jpeg');
+    }
+    fs.readFile(filepath, null, (err, data) => {
+        if (err) {
+            response.statusCode = 404;
+        } else {
+            response.write(data);
+        }
+        response.end();
+    });
+}
+
 function start_server(argv) {
     if (argv.length < 3) {
         console.error('node server.rs [github secret webhook path|--ignore-webhook-secret]!');
@@ -637,6 +673,7 @@ function start_server(argv) {
         add_log('<= github authentication is activated!');
     }
     load_favicon_data();
+    build_failures_dir();
 
     //
     // SERVER PART
@@ -658,6 +695,8 @@ function start_server(argv) {
             request.url = new m_url.URL('http://a.a' + request.url);
             if (URLS.hasOwnProperty(request.url.pathname)) {
                 URLS[request.url.pathname](response, request, server);
+            } else if (request.url.endsWith('.png') || request.url.endsWith('.jpg')) {
+                try_to_get_image(response, request);
             } else {
                 unknown_url(response, request);
             }
