@@ -141,6 +141,7 @@ async function send_github_message(url, token, message) {
     if (token === null) {
         return;
     }
+    console.log("Sending message to " + url);
     await axios.post(url,
                      {'body': message},
                      {headers: {
