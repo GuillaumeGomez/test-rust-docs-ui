@@ -147,6 +147,8 @@ async function send_github_message(url, token, message) {
                         'User-agent': 'imperio',
                         'Accept': 'application/vnd.github.v3+json',
                         'Authorization': `token ${token}`}
+                     }).catch(err => {
+                         add_error(`Failed to post message on github: ${err}`);
                      });
     add_log(`Sent message to "${url}"!`);
 }
