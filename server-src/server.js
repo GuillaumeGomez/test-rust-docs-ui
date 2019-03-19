@@ -451,7 +451,6 @@ async function github_event(response, request, server, body) {
             return;
         }
         if (run_doc_ui === true) {
-            console.log(content['comment']);
             add_log(`Received "run-doc-ui" command from ${content['issue']['url']}`);
             // We wait for the rustdoc build to end before trying to get it.
             DOC_UI_RUNS[content['issue']['url']] = false;

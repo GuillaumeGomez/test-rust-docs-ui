@@ -155,6 +155,7 @@ async function main(argv) {
                 continue;
             }
 
+            debugger;
             var newImage = TEST_FOLDER + loaded[i]["file"] + `-${runId}.png`;
             await page.screenshot({
                 path: newImage,
