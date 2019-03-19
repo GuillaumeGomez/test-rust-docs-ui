@@ -141,17 +141,16 @@ async function send_github_message(url, token, message) {
     if (token === null) {
         return;
     }
-    console.log("Sending message to " + url);
-    await axios.post(url,
+    await axios.post(url + '/comment',
                      {'body': message},
                      {headers: {
                         'User-agent': 'imperio',
                         'Accept': 'application/vnd.github.v3+json',
                         'Authorization': `token ${token}`}
+                     }).then(() => {
+                         add_log(`Sent message to "${url}"!`);
                      }).catch(err => {
                          add_error(`Failed to post message on github: ${err}`);
-                     }).all(() => {
-                         add_log(`Sent message to "${url}"!`);
                      });
 }
 
