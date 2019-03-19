@@ -137,6 +137,20 @@ function text_to_html(t) {
     return t.replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('\n', '<br>');
 }
 
+async function send_github_message(url, token, message) {
+    if (token === null) {
+        return;
+    }
+    await axios.post(url,
+                     {'body': message},
+                     {headers: {
+                        'User-agent': 'imperio',
+                        'Accept': 'application/vnd.github.v3+json',
+                        'Authorization': `token ${token}`}
+                     });
+    add_log(`Sent message to "${url}"!`);
+}
+
 module.exports = {
     addSlash: addSlash,
     getCurrentDir: getCurrentDir,
@@ -152,4 +166,5 @@ module.exports = {
     add_log: add_log,
     text_to_html: text_to_html,
     writeObjectToFile: writeObjectToFile,
+    send_github_message: send_github_message,
 };

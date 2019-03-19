@@ -18,6 +18,7 @@ var DOC_UI_RUNS = {};
 var TESTS_RESULTS = [];
 var RUNNING_TESTS = [];
 var FAVICON_DATA = null;
+var GITHUB_BOT_TOKEN = null;
 var GITHUB_WEBHOOK_SECRET_PATH = null;
 var GITHUB_CLIENT_ID = null;
 var GITHUB_CLIENT_SECRET = null;
@@ -343,9 +344,18 @@ function run_tests(id, url, response) {
             add_log(`Tests failed for ${url}: ${output}`);
             response.end("Rustdoc-UI tests failed (" + errors + " " + failure +
                          ")...\n```text\n" + output + "\n```");
+            utils.send_github_message(url, GITHUB_BOT_TOKEN,
+                                      "Rustdoc-UI tests failed \"successfully\"!\n\n<details>" +
+                                      utils.text_to_html(failure) + "\n\n" + output +
+                                      "</details>");
         } else {
             add_log(`Tests ended successfully for ${url}`);
             response.end("Rustdoc-UI tests passed!\n```text\n" + output + "\n```");
+            utils.send_github_message(url, GITHUB_BOT_TOKEN,
+                                      "Rustdoc-UI tests ended successfully (and I know that " +
+                                      "through (not so dark) magic)!\n\n<details>" +
+                                      utils.text_to_html(output) +
+                                      "</details>");
         }
         add_test_results(output, url, errors);
 
@@ -637,8 +647,9 @@ function try_to_get_image(response, request) {
 }
 
 function start_server(argv) {
-    if (argv.length < 3) {
-        console.error('node server.rs [github secret webhook path|--ignore-webhook-secret]!');
+    if (argv.length < 4) {
+        console.error('node server.rs [github secret webhook path|--ignore-webhook-secret] ' +
+                      '               [github bot token|--ignore-bot-token]');
         process.exit(1);
     }
 
@@ -657,7 +668,17 @@ function start_server(argv) {
             console.error('Invalid path received: "' + GITHUB_WEBHOOK_SECRET_PATH + '"');
             process.exit(2);
         }
-        add_log('=> Found github-webhook-secret file');
+        add_log('=> Found github-webhook-secret file!');
+    }
+    if (argv[3] === '--ignore-bot-token') {
+        add_warning('=> Disabling github send message...');
+    } else {
+        if (fs.existsSync(argv[3]) === false) {
+            console.log(`Invalid bot token path receveid: "${argv[3]}"`);
+            process.exit(3);
+        }
+        GITHUB_BOT_TOKEN = utils.readFile(argv[3]);
+        add_log('=> Found github bot token!');
     }
 
     load_cookie_keys();
@@ -695,7 +716,7 @@ function start_server(argv) {
             if (URLS.hasOwnProperty(request.url.pathname)) {
                 URLS[request.url.pathname](response, request, server);
             } else if (request.url.pathname.endsWith('.png') ||
-                       request.old_url.pathname.endsWith('.jpg')) {
+                       request.url.pathname.endsWith('.jpg')) {
                 try_to_get_image(response, request);
             } else {
                 unknown_url(response, request);
