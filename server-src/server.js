@@ -618,7 +618,7 @@ function try_to_get_image(response, request) {
     if (filepath.startsWith('/')) {
         filepath = filepath.slice(1);
     }
-    if (fs.existsFileSync(filepath) === false) {
+    if (fs.lstatSync(filepath) === false) {
         return unknown_url(response, request);
     }
     if (filepath.endsWith('.png')) {
