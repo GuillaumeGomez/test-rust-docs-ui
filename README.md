@@ -20,7 +20,7 @@ Type=simple
 Restart=always
 RestartSec=10
 User=ubuntu
-ExecStart=/usr/bin/node /home/ubuntu/test-rust-docs-ui/server-src/server.js /home/ubuntu/github-webhook-secret
+ExecStart=/usr/bin/node /home/ubuntu/test-rust-docs-ui/server-src/server.js /home/ubuntu/github-webhook-secret /home/ubuntu/github-highfive-personal-access-token
 WorkingDirectory=/home/ubuntu/test-rust-docs-ui/
 Environment="PATH='/home/ubuntu/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin'"
 
