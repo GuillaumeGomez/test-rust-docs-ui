@@ -614,7 +614,7 @@ function build_failures_dir() {
 }
 
 function try_to_get_image(response, request) {
-    let filepath = request.url;
+    let filepath = request.url.pathname;
     if (filepath.startsWith('/')) {
         filepath = filepath.slice(1);
     }
@@ -694,7 +694,8 @@ function start_server(argv) {
             request.url = new m_url.URL('http://a.a' + request.url);
             if (URLS.hasOwnProperty(request.url.pathname)) {
                 URLS[request.url.pathname](response, request, server);
-            } else if (request.url.path.endsWith('.png') || request.url.path.endsWith('.jpg')) {
+            } else if (request.url.pathname.endsWith('.png') ||
+                       request.old_url.pathname.endsWith('.jpg')) {
                 try_to_get_image(response, request);
             } else {
                 unknown_url(response, request);
