@@ -149,8 +149,9 @@ async function send_github_message(url, token, message) {
                         'Authorization': `token ${token}`}
                      }).catch(err => {
                          add_error(`Failed to post message on github: ${err}`);
+                     }).all(() => {
+                         add_log(`Sent message to "${url}"!`);
                      });
-    add_log(`Sent message to "${url}"!`);
 }
 
 module.exports = {
