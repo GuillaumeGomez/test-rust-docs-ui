@@ -677,7 +677,7 @@ function start_server(argv) {
             console.log(`Invalid bot token path receveid: "${argv[3]}"`);
             process.exit(3);
         }
-        GITHUB_BOT_TOKEN = utils.readFile(argv[3]);
+        GITHUB_BOT_TOKEN = utils.readFile(argv[3]).replaceAll('\n', '');
         add_log('=> Found github bot token!');
     }
 
