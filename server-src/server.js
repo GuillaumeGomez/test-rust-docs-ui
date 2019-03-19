@@ -694,13 +694,15 @@ function start_server(argv) {
             request.url = new m_url.URL('http://a.a' + request.url);
             if (URLS.hasOwnProperty(request.url.pathname)) {
                 URLS[request.url.pathname](response, request, server);
-            } else if (request.url.endsWith('.png') || request.url.endsWith('.jpg')) {
+            } else if (request.url.path.endsWith('.png') || request.url.path.endsWith('.jpg')) {
                 try_to_get_image(response, request);
             } else {
                 unknown_url(response, request);
             }
         } catch(err) {
             add_error(`An error occurred: ${err}`);
+            response.statusCode = 500;
+            response.end();
         }
     });
     server.listen(config.PORT);
