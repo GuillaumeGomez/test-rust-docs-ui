@@ -59,14 +59,15 @@ function save_failure(folderIn, newImage, originalImage, runId) {
         try {
             fs.mkdirSync(config.FAILURES_FOLDER + runId);
         } catch(err) {
-            add_warn(`Error while trying to make "${config.FAILURES_FOLDER + runId}": ${err}`);
+            add_warn(`Error while trying to make folder "${config.FAILURES_FOLDER + runId}": ${err}`);
             // Failed to create folder to save failures...
             return false;
         }
     }
     try {
-        fs.renameSync(folderIn + newImage, config.FAILURES_FOLDER + runId + '/');
-        fs.renameSync(folderIn + originalImage, config.FAILURES_FOLDER + runId + '/');
+        fs.renameSync(folderIn + newImage, config.FAILURES_FOLDER + runId + '/' + newImage);
+        fs.renameSync(folderIn + originalImage,
+                      config.FAILURES_FOLDER + runId + '/' + originalImage);
     } catch(err) {
         add_warn(`Error while trying to move files: "${err}"`);
         // failed to move files...
@@ -75,8 +76,8 @@ function save_failure(folderIn, newImage, originalImage, runId) {
     return true;
 }
 
-function make_url(img) {
-    return config.SERVER_URL + config.FAILURES_FOLDER + img;
+function make_url(img, runId) {
+    return config.SERVER_URL + config.FAILURES_FOLDER + runId + '/' + img;
 }
 
 async function main(argv) {
@@ -159,7 +160,7 @@ async function main(argv) {
             }
 
             var imageShort = loaded[i]["file"].slice(0, loaded[i]["file"].length - 5);
-            var newImage = TEST_FOLDER + imageShort + `-${runId}.png`;
+            var newImage = `${TEST_FOLDER}${imageShort}-${runId}.png`;
             await page.screenshot({
                 path: newImage,
                 fullPage: true,
@@ -179,11 +180,13 @@ async function main(argv) {
                               PNG.load(originalImage).imgData) === false) {
                 failures += 1;
                 let saved = save_failure(TEST_FOLDER, imageShort + `-${runId}.png`,
-                                         loaded[i]["file"], runId);
+                                         loaded[i]["file"] + ".png", runId);
                 if (saved === true) {
                     logs = appendLog(logs,
-                                     'FAILED (images "' + newImage + '" and "' +
-                                     originalImage + '" are different)', true);
+                                     'FAILED (images "' +
+                                     make_url(`${imageShort}-${runId}.png`, runId) +
+                                     '" and "' + make_url(loaded[i]["file"] + '.png', runId) +
+                                     '" are different)', true);
                 } else {
                     logs = appendLog(logs,
                                      'FAILED (images "' + newImage + '" and "' +
