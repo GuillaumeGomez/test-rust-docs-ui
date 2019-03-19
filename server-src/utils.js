@@ -141,7 +141,7 @@ async function send_github_message(url, token, message) {
     if (token === null) {
         return;
     }
-    await axios.post(url + '/comment',
+    await axios.post(url + '/comments',
                      {'body': message},
                      {headers: {
                         'User-agent': 'imperio',
