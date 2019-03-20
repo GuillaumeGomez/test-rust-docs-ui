@@ -342,19 +342,19 @@ function run_tests(id, url, response) {
                 failure = "failures";
             }
             add_log(`Tests failed for ${url}: ${output}`);
-            response.end("Rustdoc-UI tests failed (" + errors + " " + failure +
-                         ")...\n```text\n" + output + "\n```");
+            response.end("Rustdoc-UI tests failed (" + errors + " " + failure + ")...");
             utils.send_github_message(url, GITHUB_BOT_TOKEN,
-                                      "Rustdoc-UI tests failed \"successfully\"!\n\n<details>\n```\n" +
-                                      utils.text_to_html(output) + "\n```\n</details>");
+                                      "Rustdoc-UI tests failed \"successfully\"!\n\n<details>" +
+                                      "<summary><i>Click to expand the log.</i></summary>\n\n" +
+                                      "```plain\n" + output + "\n```\n</details>");
         } else {
             add_log(`Tests ended successfully for ${url}`);
-            response.end("Rustdoc-UI tests passed!\n```text\n" + utils.text_to_html(output) + "\n```");
+            response.end("Rustdoc-UI tests passed!");
             utils.send_github_message(url, GITHUB_BOT_TOKEN,
                                       "Rustdoc-UI tests ended successfully (and I know that " +
-                                      "through (not so dark) magic)!\n\n<details>\n```text\n" +
-                                      utils.text_to_html(output) +
-                                      "\n```\n</details>");
+                                      "through (not so dark) magic)!\n\n<details><summary><i>" +
+                                      "Click to expand the log.</i></summary>\n\n```plain\n" +
+                                      output + "\n```\n</details>");
         }
         add_test_results(output, url, errors);
 
