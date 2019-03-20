@@ -345,17 +345,16 @@ function run_tests(id, url, response) {
             response.end("Rustdoc-UI tests failed (" + errors + " " + failure +
                          ")...\n```text\n" + output + "\n```");
             utils.send_github_message(url, GITHUB_BOT_TOKEN,
-                                      "Rustdoc-UI tests failed \"successfully\"!\n\n<details>```\n" +
-                                      utils.text_to_html(failure) + "\n\n" + output +
-                                      "\n```</details>");
+                                      "Rustdoc-UI tests failed \"successfully\"!\n\n<details>\n```\n" +
+                                      utils.text_to_html(output) + "\n```\n</details>");
         } else {
             add_log(`Tests ended successfully for ${url}`);
-            response.end("Rustdoc-UI tests passed!\n```text\n" + output + "\n```");
+            response.end("Rustdoc-UI tests passed!\n```text\n" + utils.text_to_html(output) + "\n```");
             utils.send_github_message(url, GITHUB_BOT_TOKEN,
                                       "Rustdoc-UI tests ended successfully (and I know that " +
-                                      "through (not so dark) magic)!\n\n<details>```text\n" +
+                                      "through (not so dark) magic)!\n\n<details>\n```text\n" +
                                       utils.text_to_html(output) +
-                                      "\n```</details>");
+                                      "\n```\n</details>");
         }
         add_test_results(output, url, errors);
 
