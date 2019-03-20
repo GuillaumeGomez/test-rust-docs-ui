@@ -4,3 +4,4 @@ github_credentials.json
 test_results.json
 cookie-keys.json
 logs.json
+failures
