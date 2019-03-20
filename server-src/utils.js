@@ -141,6 +141,8 @@ async function send_github_message(url, token, message) {
     if (token === null) {
         return;
     }
+    console.log(`url: ${url}/comments`);
+    console.log(`Authorization: token ${token}`);
     await axios.post(url + '/comments',
                      {'body': message},
                      { headers: {
