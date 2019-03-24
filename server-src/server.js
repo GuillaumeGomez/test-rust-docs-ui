@@ -116,7 +116,7 @@ async function get_admin(response, request) {
 async function get_status(response, request, server) {
     let cookies = utils.get_cookies(request, response, COOKIE_KEYS);
 
-    let lines = TESTS_RESULTS.map(x => {
+    let lines = TESTS_RESULTS.reverse().map(x => {
         let s = `<div class="line${x['errors'] > 0 ? ' error' : ''}" onclick="showHideLogs(this)">`;
         s += `<div class="label">${make_link_from_url(x['url'])}</div>`;
         if (x['errors'] > 0) {
