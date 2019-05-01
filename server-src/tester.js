@@ -66,8 +66,6 @@ function save_failure(folderIn, newImage, originalImage, runId) {
     }
     try {
         fs.renameSync(folderIn + newImage, config.FAILURES_FOLDER + runId + '/' + newImage);
-        fs.renameSync(folderIn + originalImage,
-                      config.FAILURES_FOLDER + runId + '/' + originalImage);
     } catch(err) {
         add_warn(`Error while trying to move files: "${err}"`);
         // failed to move files...
@@ -80,27 +78,92 @@ function make_url(img, runId) {
     return config.SERVER_URL + config.FAILURES_FOLDER + runId + '/' + img;
 }
 
+function helper() {
+    console.log("tester");
+    console.log("  --rustdoc-path [PATH] : path of the rustdoc executable to be used");
+    console.log("  --run-id [id]         : commit id to be used (used as output path if");
+    console.log("                          `--output-path` option isn't provided)");
+    console.log("  --output-path [PATH]  : path where doc will be generated");
+    console.log("  --generate-images     : if provided, it'll generate test images and won't");
+    console.log("                          run comparison tests");
+    console.log("  --no-headless         : Disable headless mode");
+    console.log("  --help | -h           : Show this text");
+}
+
 async function main(argv) {
     var logs = "";
 
-    if (argv.length < 4) {
-        return ["tester [RUSTDOC PATH] [ID] [--generate-images (optional)]", 1];
+    var rustdocPath = "";
+    var runId = "";
+    var outputPath = "";
+    var headless = true;
+    var generateImages = false;
+
+    for (var it = 2; it < argv.length; ++it) {
+        if (argv[it] === "--rustdoc-path") {
+            if (it + 1 < argv.length) {
+                rustdocPath = argv[it + 1];
+                it += 1;
+            } else {
+                return ["Missing path after '--rustdoc-path' option", 1];
+            }
+        } else if (argv[it] === "--run-id") {
+            if (it + 1 < argv.length) {
+                runId = argv[it + 1];
+                it += 1;
+            } else {
+                return ["Missing id after '--run-id' option", 1];
+            }
+        } else if (argv[it] === "--output-path") {
+            if (it + 1 < argv.length) {
+                outputPath = argv[it + 1];
+                it += 1;
+            } else {
+                return ["Missing id after '--output-path' option", 1];
+            }
+        } else if (argv[it] === "--generate-images") {
+            generateImages = true;
+        } else if (argv[it] === "--no-headless") {
+            headless = false;
+        } else if (argv[it] === "--help" || argv[it] === "-h") {
+            helper();
+            return ["", 0];
+        } else {
+            return [`Unknown option '${argv[it]}'\n` +
+                    "Use '--help' if you want the list of the available commands", 1];
+        }
     }
 
-    const rustdocPath = argv[2];
+    if (rustdocPath.length === 0) {
+        return ["You need to provide '--rustdop-path' option!", 1];
+    } else if (runId.length === 0 && outputPath.length === 0) {
+        return ["You need to provide '--run-id' and/or '--output-path' options!", 1];
+    }
+    if (outputPath.length === 0) {
+        outputPath = runId;
+    }
+
     var currentDir = utils.getCurrentDir();
 
-    const outPath = currentDir + utils.addSlash(argv[3]);
-    const runId = argv[3];
+    const outPath = currentDir + utils.addSlash(outputPath);
     const docPath = outPath + "lib/";
-    var generateImages = false;
-    if (argv.length >= 5) {
-        generateImages = argv[4] === "--generate-images"; // TODO improve arguments parsing
-    }
     try {
-        execFileSync(rustdocPath, [`+${runId}`, "test-docs/src/lib.rs", "-o", outPath]);
+        var args = [];
+        if (runId.length !== 0) {
+            args.push(`+${runId}`);
+        }
+        args.push("test-docs/src/lib.rs");
+        args.push("-o");
+        args.push(outPath);
+        execFileSync(rustdocPath, args);
     } catch (err) {
         return ["=== STDERR ===\n" + err.stderr + "\n\n=== STDOUT ===\n" + err.stdout, 1];
+    }
+
+    // If no run id has been provided to the script, we create a little one so test files don't
+    // have an ugly name.
+    if (runId.length === 0) {
+        runId = "test";
     }
 
     logs = "=> Starting doc-ui tests...";
@@ -130,7 +193,11 @@ async function main(argv) {
     }
 
     var error_log;
-    const browser = await puppeteer.launch();
+    var options = {};
+    if (headless === false) {
+        options['headless'] = false;
+    }
+    const browser = await puppeteer.launch(options);
     for (var i = 0; i < loaded.length; ++i) {
         logs = appendLog(logs, loaded[i]["file"] + "... ");
         const page = await browser.newPage();
