@@ -142,12 +142,32 @@ function parseScrollTo(line) {
     return parseMoveCursorTo(line); // The page will scroll to the element
 }
 
+// Possible income:
+//
+// * (width, height)
+function parseSize(line) {
+    if (line.startsWith('(')) {
+        if (!line.endsWith(')')) {
+            return {"error": "Invalid syntax: expected size to end with ')'..."};
+        }
+        if (line.match(/\([0-9]+,[ ]*[0-9]+\)/g) === null) {
+            return {"error": "Invalid syntax: expected \"([number], [number])\"..."};
+        }
+        var [width, height] = line.match(/\d+/g).map(function(f) { return parseInt(f) });
+        return {"instructions": [
+            `page.setViewport(${width},${height})`,
+        ]};
+    }
+    return {"error": "Expected '(' character as start"};
+}
+
 const ORDERS = {
     'click': parseClick,
     'focus': parseFocus,
     'gotourl': parseGoToUrl,
     'movecursorto': parseMoveCursorTo,
     'scrollto': parseScrollTo,
+    'size': parseSize,
     'waitfor': parseWaitFor,
     'write': parseWrite,
 };
