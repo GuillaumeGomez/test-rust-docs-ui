@@ -105,3 +105,17 @@ Then:
 > sudo netstat -lnp # kill all programs running on the 80 port!
 > sudo systemctl restart nginx
 ```
+
+## Usage
+
+If you want to run tests locally, you can do so by running:
+
+```bash
+> node server-src/tester.js --rustdoc-path rustdoc --output-path tests
+```
+
+If you want the list of the available commands, just run:
+
+```bash
+> node server-src/tester.js --help
+```
