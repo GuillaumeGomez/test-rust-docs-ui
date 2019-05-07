@@ -78,9 +78,6 @@ header > div, .running, .results, .results > .line {
 .line > .label {
     padding: 4px;
 }
-.line > .label > a {
-    text-decoration: none;
-}
 .line > .errors  {
     width: 15px;
     position: absolute;
