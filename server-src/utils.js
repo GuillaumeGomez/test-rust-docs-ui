@@ -154,9 +154,9 @@ async function send_github_message(url, token, message) {
                      });
 }
 
-function format_date(d) {
-    if (typeof d !== 'undefined') {
-        let d = new Date(x['time']);
+function format_date(x) {
+    if (typeof x !== 'undefined') {
+        let d = new Date(x);
         return ' ' + d.getHours() + ':' + d.getMinutes() + ':' + d.getSeconds() + ' ' +
             d.getDate() + '/' + (d.getMonth() + 1) + '/' + d.getFullYear();
     }
