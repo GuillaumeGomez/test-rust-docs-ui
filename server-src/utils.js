@@ -111,7 +111,7 @@ function push_to_logs(output, level) {
     if (LOGS.length >= config.MAX_LOGS) {
         LOGS.shift();
     }
-    LOGS.push({'text': output, 'level': level, 'time': parseInt(Date.now()});
+    LOGS.push({'text': output, 'level': level, 'time': parseInt(Date.now())});
 }
 
 function add_log(output, level) {
