@@ -28,6 +28,8 @@ global.LOGS = [];
 function make_link(url, text, blank, _class) {
     if (typeof _class !== "undefined") {
         _class = ` class="${_class}"`;
+    } else {
+        _class = '';
     }
     if (blank === true) {
         return `<a href="${url}" target="_blank"${_class}>${text}</a>`
@@ -80,7 +82,11 @@ async function get_admin(response, request) {
             } else if (log['level'] === config.LOG_WARNING) {
                 level = ' warning';
             }
-            logs.push(`<code class="logs${level}">${utils.text_to_html(log['text'])}</code>`);
+            let s_date = utils.format_date(log['time']);
+            if (s_date.length > 0) {
+                s_date += ': ';
+            }
+            logs.push(`<code class="logs${level}">${s_date}${utils.text_to_html(log['text'])}</code>`);
         }
 
         response.write(`<html>
@@ -117,8 +123,9 @@ async function get_status(response, request, server) {
     let cookies = utils.get_cookies(request, response, COOKIE_KEYS);
 
     let lines = TESTS_RESULTS.reverse().map(x => {
+        let s_date = utils.format_date(x['time']);
         let s = `<div class="line${x['errors'] > 0 ? ' error' : ''}" onclick="showHideLogs(this)">`;
-        s += `<div class="label">${make_link_from_url(x['url'])}</div>`;
+        s += `<div class="label">${make_link_from_url(x['url'])}${s_date}</div>`;
         if (x['errors'] > 0) {
             s += `<span class="errors">${x['errors']}</span>`;
         }
@@ -171,7 +178,8 @@ function add_test_results(output, issue_url, errors) {
     if (TESTS_RESULTS.length >= config.MAX_TEST_RESULTS) {
         TESTS_RESULTS.shift();
     }
-    TESTS_RESULTS.push({'url': issue_url, 'text': output, 'errors': errors});
+    TESTS_RESULTS.push({'url': issue_url, 'text': output, 'errors': errors,
+                        'time': parseInt(Date.now())});
     try {
         utils.writeObjectToFile(config.TESTS_RESULTS_FILE, {'results': TESTS_RESULTS});
     } catch(err) {
@@ -392,7 +400,7 @@ async function github_event(response, request, server, body) {
         }
 
         // If we received the message that the rustdoc binary is ready, we can start tests!
-        if (DOC_UI_RUNS[content['issue']['url']] === false) {
+        if (DOC_UI_RUNS[content['issue']['html_url']] === false) {
             let id = null;
             const lines = content['comment']['body'].split('\n');
 
@@ -407,7 +415,7 @@ async function github_event(response, request, server, body) {
                 }
             }
             if (id !== null) {
-                run_tests(id, content['issue']['url'], response);
+                run_tests(id, content['issue']['html_url'], response);
                 return;
             }
         }
@@ -445,26 +453,26 @@ async function github_event(response, request, server, body) {
         if (need_restart === true || run_doc_ui === true || need_update === true) {
             let r = await check_rights(content['comment']['user']['login']).catch(() => {});
             if (r !== true) {
-                add_log(`github_event: missing rights for ${content['comment']['user']['login']} on ${content['issue']['url']}`);
+                add_log(`github_event: missing rights for ${content['comment']['user']['login']} on ${content['issue']['html_url']}`);
                 response.end();
                 return;
             }
         }
         if (need_update === true) {
-            add_log(`Received "update" command from ${content['issue']['url']}`);
+            add_log(`Received "update" command from ${content['issue']['html_url']}`);
             utils.updateRepository();
         }
         if (need_restart === true) {
-            add_log(`Received "restart" command from ${content['issue']['url']}`);
+            add_log(`Received "restart" command from ${content['issue']['html_url']}`);
             restart(response, request, server);
             return;
         }
         if (run_doc_ui === true) {
-            add_log(`Received "run-doc-ui" command from ${content['issue']['url']}`);
+            add_log(`Received "run-doc-ui" command from ${content['issue']['html_url']}`);
             // We wait for the rustdoc build to end before trying to get it.
-            DOC_UI_RUNS[content['issue']['url']] = false;
+            DOC_UI_RUNS[content['issue']['html_url']] = false;
             if (specific_commit !== null) {
-                run_tests(specific_commit, content['issue']['url'], response);
+                run_tests(specific_commit, content['issue']['html_url'], response);
                 return;
             }
         }

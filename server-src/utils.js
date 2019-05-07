@@ -111,7 +111,7 @@ function push_to_logs(output, level) {
     if (LOGS.length >= config.MAX_LOGS) {
         LOGS.shift();
     }
-    LOGS.push({'text': output, 'level': level});
+    LOGS.push({'text': output, 'level': level, 'time': parseInt(Date.now()});
 }
 
 function add_log(output, level) {
@@ -154,6 +154,15 @@ async function send_github_message(url, token, message) {
                      });
 }
 
+function format_date(d) {
+    if (typeof d !== 'undefined') {
+        let d = new Date(x['time']);
+        return ' ' + d.getHours() + ':' + d.getMinutes() + ':' + d.getSeconds() + ' ' +
+            d.getDate() + '/' + (d.getMonth() + 1) + '/' + d.getFullYear();
+    }
+    return '';
+}
+
 module.exports = {
     addSlash: addSlash,
     getCurrentDir: getCurrentDir,
@@ -170,4 +179,5 @@ module.exports = {
     text_to_html: text_to_html,
     writeObjectToFile: writeObjectToFile,
     send_github_message: send_github_message,
+    format_date: format_date,
 };
