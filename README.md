@@ -208,6 +208,12 @@ If you want to run tests locally, you can do so by running:
 > node server-src/tester.js --rustdoc-path rustdoc --output-path tests
 ```
 
+If you added new tests and you want to generate images for it:
+
+```bash
+node server-src/tester.js --rustdoc-path rustdoc --output-path tests --generate-images
+```
+
 If you want the list of the available commands, just run:
 
 ```bash
