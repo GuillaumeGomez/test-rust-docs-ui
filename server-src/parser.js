@@ -1,14 +1,20 @@
 var os = require('os');
 
 function getString(content) {
+    if (content.length < 1) {
+        return {"error": "No string received"};
+    }
     var stop = content[0];
 
+    if (stop !== '"' && stop !== "'") {
+        return {"error": `Expected \`'\` or \`"\` character, found \`${content[0]}\``};
+    }
     for (var i = 1; i < content.length; ++i) {
         if (content[i] === stop && content[i - 1] !== '\\') {
-            return content.substring(1, i);
+            return {"content": content.substring(1, i)};
         }
     }
-    return null;
+    return {"error": "Missing termination character"};
 }
 
 // Possible incomes:
@@ -70,25 +76,25 @@ function parseFocus(line) {
 // * [CSS selector (for example: #elementID)] "text"
 // * "text" (in here, it'll write into the current focused element)
 function parseWrite(line) {
-    if (line.startsWith("\"")) { // current focused element
+    if (line.startsWith("\"") || line.startsWith("'")) { // current focused element
         var x = getString(line);
-        if (x === null) {
-            return {"error": "Invalid string received"};
+        if (x.error !== undefined) {
+            return x;
         }
         return {"instructions": [
-            `page.keyboard.type("${x}")`,
+            `page.keyboard.type("${x.content}")`,
         ]};
-    } else if (line.indexOf("\"") === -1) {
+    } else if (line.indexOf("\"") === -1 && line.indexOf("'") === -1) {
         return {"error": "Missing string. Requires '\"'"};
     }
     var elem = line.split(' ')[0];
     var text = getString(line.substr(elem.length + 1).trim());
-    if (text === null) {
-        return {"error": `Invalid string received: '${line.substr(elem.length + 1).trim()}'`};
+    if (text.error !== undefined) {
+        return x;
     }
     return {"instructions": [
         `page.focus("${elem}")`,
-        `page.keyboard.type("${text}")`,
+        `page.keyboard.type("${text.content}")`,
     ]};
 }
 
@@ -130,6 +136,10 @@ function parseGoToUrl(line) {
         return {"instructions": [
             `page.goto(page.url().split("/").slice(0, -1).join("/") + "/" + "${line}")`,
         ]};
+    } else if (line.startsWith("/")) {
+        return {"instructions": [
+            `page.goto(page.url().split("/").slice(0, -1).join("/") + "${line}")`,
+        ]};
     }
     return {"error": "A relative path or a full URL was expected"};
 }
@@ -161,6 +171,31 @@ function parseSize(line) {
     return {"error": "Expected '(' character as start"};
 }
 
+function parseLocalStorage(line) {
+    if (!line.startsWith('{')) {
+        return {"error": `Expected json object (object wrapped inside "{}"), found "${line}"`};
+    }
+    try {
+        var d = JSON.parse(line);
+        var content = [];
+        for (var key in d) {
+            if (key.length > 0 && d.hasOwnProperty(key)) {
+                content.push(`localStorage.setItem("${key.split('"').join('\\"')}", "${d[key].split('"').join('\\"')}");`);
+            }
+        }
+        if (content.length === 0) {
+            return {"instructions": []};
+        }
+        return {"instructions": [
+            `page.evaluate(() => {
+                ${content.join('\n')}
+            })`
+        ]};
+    } catch(e) {
+        return {"error": "Error when parsing JSON content: " + e};
+    }
+}
+
 const ORDERS = {
     'click': parseClick,
     'focus': parseFocus,
@@ -170,6 +205,7 @@ const ORDERS = {
     'size': parseSize,
     'waitfor': parseWaitFor,
     'write': parseWrite,
+    'localstorage': parseLocalStorage,
 };
 
 function parseContent(content) {
@@ -185,8 +221,8 @@ function parseContent(content) {
         var order = line.split(':')[0].toLowerCase();
         if (ORDERS.hasOwnProperty(order)) {
             res = ORDERS[order](lines[i].substr(order.length + 1).trim());
-            if (res.error) {
-                res.line = i;
+            if (res.error !== undefined) {
+                res.line = i + 1;
                 return [res];
             }
             for (var y = 0; y < res["instructions"].length; ++y) {
