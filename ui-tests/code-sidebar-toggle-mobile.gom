@@ -1,0 +1,4 @@
+size: (600, 600)
+click: .srclink
+click: #sidebar-toggle
+waitfor: 2000

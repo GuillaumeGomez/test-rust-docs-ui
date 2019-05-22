@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["WhoLetTheDogOut","Just a normal enum."]],"fn":[["foo","Basic function with some code examples:"],["some_more_function","Who doesn't love to wrap a `format!` call?"]],"struct":[["Foo","Just a normal struct."]]});
