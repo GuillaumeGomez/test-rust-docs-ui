@@ -1,6 +1,100 @@
 # test-rust-docs-ui
 
+## How to add tests
+
+You'll need to add two files for a test: a `.gom` and a `.rs` (which represents a file that'll be documented with rustdoc).
+
+The `.gom` contains the instructions that the browser will execute. It's basically a "key: value" file. All commands are case insensitive. Here are the available commands:
+
+#### click
+
+**click** command clicks on an element. It expects a CSS selector (a class name or an id) or a position. Examples:
+
+```
+click: .element
+click: #element
+click: (10, 12)
+```
+
+#### waitfor
+
+**waitfor** command waits a duration or an element to be created. It expects a CSS selector (a class name or an id) or a duration in milliseconds. Examples:
+
+```
+waitfor: .element
+waitfor: #element
+waitfor: 1000
+```
+
+#### focus
+
+**focus** command focuses (who would have guessed?) on a given element. It expects a CSS selector (a class name or an id). Examples:
+
+```
+focus: .element
+focus: #element
+```
+
+#### write
+
+**write** command sends keyboard inputs on given element. If no element is provided, it'll write into the currently focused element. It expects a string and/or a CSS selector (a class name or an id). The string has to be surrounded by quotes (either `'` or `"`). Examples:
+
+```
+write: .element "text"
+write: #element "text"
+write: "text"
+```
+
+#### movecursorto
+
+**movecursorto** command moves the mouse cursor to the given position or element. It expects a tuple of integers (`(x, y)`) or a CSS selector (a class name or an id). Examples:
+
+```
+movecursorto: #element
+movecursorto: .element
+movecursorto: (10, 12)
+```
+
+#### gotourl
+
+**gotourl** command changes the current page to the given path/url. It expects a path (starting with `.` or `/`) or a URL. Examples:
+
+```
+gotourl: https://test.com
+gotourl: http://test.com
+gotourl: /test
+gotourl: ../test
+```
+
+#### scrollto
+
+**scrollto** command scrolls to the given position or element. It expects a tuple of integers (`(x, y)`) or a CSS selector (a class name or an id). Examples:
+
+```
+scrollto: #element
+scrollto: .element
+scrollto: (10, 12)
+```
+
+#### size
+
+**size** command changes the window's size. It expects a type of integers (`(width, height)`). Example:
+
+```
+size: (700, 1000)
+```
+
+#### localstorage
+
+**localstorage** command sets local storage's values. It expect a JSON object. Example:
+
+```
+localstorage: {"key": "value", "another key": "another value"}
+```
+
 ## Installation process
+
+If you want to run it directly, here are the installation instructions:
 
 ```bash
 > git clone https://github.com/GuillaumeGomez/test-rust-docs-ui
