@@ -49,11 +49,11 @@ function parseClick(line) {
 function parseWaitFor(line) {
     if (line.match(/[0-9]+/) !== null) {
         return {"instructions": [
-            `page.waitFor(${parseInt(line)})`,
+            `await page.waitFor(${parseInt(line)})`,
         ]};
     } else if (line.match(/([#|\.]?)([\w|:|\s|\.]+)/g) !== null) {
         return {"instructions": [
-            `page.waitFor("${line}")`,
+            `await page.waitFor("${line}")`,
         ]};
     }
     return {"error": "Expected a number or a CSS selector"};
@@ -130,15 +130,15 @@ function parseGoToUrl(line) {
     // We just check if it goes to an HTML file, not checking much though...
     if (line.startsWith("http") || line.startsWith("www.")) {
         return {"instructions": [
-            `page.goto("${line}")`,
+            `await page.goto("${line}")`,
         ]};
     } else if (line.startsWith(".")) {
         return {"instructions": [
-            `page.goto(page.url().split("/").slice(0, -1).join("/") + "/" + "${line}")`,
+            `await page.goto(page.url().split("/").slice(0, -1).join("/") + "/" + "${line}")`,
         ]};
     } else if (line.startsWith("/")) {
         return {"instructions": [
-            `page.goto(page.url().split("/").slice(0, -1).join("/") + "${line}")`,
+            `await page.goto(page.url().split("/").slice(0, -1).join("/") + "${line}")`,
         ]};
     }
     return {"error": "A relative path or a full URL was expected"};
@@ -165,7 +165,7 @@ function parseSize(line) {
         }
         var [width, height] = line.match(/\d+/g).map(function(f) { return parseInt(f) });
         return {"instructions": [
-            `page.setViewport(${width},${height})`,
+            `page.setViewport({width: ${width}, height: ${height}})`,
         ]};
     }
     return {"error": "Expected '(' character as start"};

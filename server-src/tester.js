@@ -170,6 +170,7 @@ async function main(argv) {
 
     var loaded = [];
     var failures = 0;
+    var ignored = 0;
     fs.readdirSync(TEST_FOLDER).forEach(function(file) {
         var fullPath = TEST_FOLDER + file;
         if (file.endsWith(".gom") && fs.lstatSync(fullPath).isFile()) {
@@ -208,11 +209,10 @@ async function main(argv) {
             const commands = loaded[i]["commands"];
             for (var x = 0; x < commands.length; ++x) {
                 await loadContent(commands[x])(page).catch(err => {
-                    error_log = err.toString();
+                    error_log = err.toString() + `: for command {${commands[x].join(';')}} `;
                 });
                 if (error_log.length > 0) {
                     failures += 1;
-                    logs = appendLog(logs, 'FAILED', true);
                     logs = appendLog(logs, error_log);
                     break;
                 }
@@ -221,7 +221,7 @@ async function main(argv) {
             }
             if (error_log.length > 0) {
                 logs = appendLog(logs, 'FAILED', true);
-                logs = appendLog(logs, loaded[i]["file"] + " output:\n" + err + '\n');
+                logs = appendLog(logs, loaded[i]["file"] + " output:\n" + error_log + '\n');
                 failures += 1;
                 continue;
             }
@@ -233,12 +233,14 @@ async function main(argv) {
             });
 
             var originalImage = TEST_FOLDER + loaded[i]["file"] + ".png";
+            console.log("check for " + originalImage);
             if (fs.existsSync(originalImage) === false) {
                 if (generateImages === false) {
+                    ignored += 1;
                     logs = appendLog(logs, 'ignored ("' + originalImage + '" not found)', true);
                 } else {
                     fs.renameSync(newImage, originalImage);
-                    logs = appendLog(logs, 'ignored', true);
+                    logs = appendLog(logs, 'generated', true);
                 }
                 continue;
             }
@@ -278,8 +280,8 @@ async function main(argv) {
         logs = appendLog(logs, ret["error"]);
     }
 
-    logs = appendLog(logs, "<= doc-ui tests done: " + (loaded.length - failures) + " succeeded, " +
-                           failures + " failed");
+    logs = appendLog(logs, "<= doc-ui tests done: " + (loaded.length - failures - ignored) +
+                           " succeeded, " + ignored + " ignored, " + failures + " failed");
 
     return [logs, failures];
 }
