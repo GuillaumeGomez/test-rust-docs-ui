@@ -171,6 +171,9 @@ function parseSize(line) {
     return {"error": "Expected '(' character as start"};
 }
 
+// Possible income:
+//
+// * JSON object (for example: {"key": "value", "another key": "another value"})
 function parseLocalStorage(line) {
     if (!line.startsWith('{')) {
         return {"error": `Expected json object (object wrapped inside "{}"), found "${line}"`};
