@@ -37,3 +37,15 @@ pub enum WhoLetTheDogOut {
 pub fn some_more_function<T: fmt::Debug>(t: &T) -> String {
     format!("{:?}", t)
 }
+
+/// Woohoo! A trait!
+pub trait AnotherOne {
+    /// Some func 1.
+    fn func1();
+
+    /// Some func 2.
+    fn func2();
+
+    /// Some func 3.
+    fn func3();
+}

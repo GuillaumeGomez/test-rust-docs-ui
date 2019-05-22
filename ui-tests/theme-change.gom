@@ -1,0 +1,2 @@
+click: #theme-picker
+click: #theme-choices > button:first-child
