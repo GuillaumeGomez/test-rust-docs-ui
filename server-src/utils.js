@@ -159,11 +159,19 @@ async function send_github_message(url, token, message) {
                      });
 }
 
+function add_missing_zero(x) {
+    if (typeof x !== 'undefined' && x < 10) {
+        return `0${x}`;
+    }
+    return x;
+}
+
 function format_date(x) {
     if (typeof x !== 'undefined') {
         let d = new Date(x);
-        return ' ' + d.getHours() + ':' + d.getMinutes() + ':' + d.getSeconds() + ' ' +
-            d.getDate() + '/' + (d.getMonth() + 1) + '/' + d.getFullYear();
+        const f = add_missing_zero;
+        return ' ' + f(d.getHours()) + ':' + f(d.getMinutes()) + ':' + f(d.getSeconds()) + ' ' +
+            f(d.getDate()) + '/' + f(d.getMonth() + 1) + '/' + f(d.getFullYear());
     }
     return '';
 }
