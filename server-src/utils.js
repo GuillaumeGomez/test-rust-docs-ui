@@ -24,10 +24,15 @@ function getCurrentDir() {
 }
 
 function updateRepository() {
+    var ret = "";
     try {
-        return execFileSync("git", ["pull", "origin", "master"]);
+        ret = execFileSync("git", ["fetch", "origin"]);
+        ret += '\n\n' + execFileSync("git", ["checkout", "-b", "origin/master"]);
+        ret += '\n\n' + execFileSync("git", ["branch", "-D", "master"]);
+        ret += '\n\n' + execFileSync("git", ["checkout", "-b", "master"]);
+        return ret;
     } catch(err) {
-        add_error("Cannot update server sources: '" + err + "'");
+        add_error(ret + "\n\nCannot update server sources: '" + err + "'");
         return "";
     }
 }
