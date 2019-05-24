@@ -27,7 +27,7 @@ function updateRepository() {
     var ret = "";
     try {
         ret = execFileSync("git", ["fetch", "origin"]);
-        ret += '\n\n' + execFileSync("git", ["checkout", "-b", "origin/master"]);
+        ret += '\n\n' + execFileSync("git", ["checkout", "origin/master"]);
         ret += '\n\n' + execFileSync("git", ["branch", "-D", "master"]);
         ret += '\n\n' + execFileSync("git", ["checkout", "-b", "master"]);
         return ret;
