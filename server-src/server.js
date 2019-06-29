@@ -98,7 +98,7 @@ async function get_admin(response, request) {
 </head>
 <body>
     <header>
-        ${make_link(REPOSITORY_URL, '<img src="/github.png">', true, 'repository')}
+        ${make_link(REPOSITORY_URL, '<img src="/assets/github.png">', true, 'repository')}
         <div>rustdoc UI tests - Admin</div>
         ${make_link('/', 'Home', null, 'log-in button')}
     </header>
@@ -164,7 +164,7 @@ async function get_status(response, request, server) {
 </head>
 <body>
     <header>
-        ${make_link(REPOSITORY_URL, '<img src="/github.png">', true, 'repository')}
+        ${make_link(REPOSITORY_URL, '<img src="/assets/github.png">', true, 'repository')}
         <div>rustdoc UI tests</div>${github_part}
     </header>
     <div class="content">${error}
@@ -635,7 +635,7 @@ function build_failures_dir() {
 
 function try_to_get_image(response, request) {
     let filepath = request.url.pathname;
-    if (filepath.startsWith('/')) {
+    while (filepath.startsWith('/')) {
         filepath = filepath.slice(1);
     }
     if (fs.lstatSync(filepath) === false) {
