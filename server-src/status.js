@@ -39,8 +39,10 @@ header > div, .running, .results, .results > .line {
 header > .repository {
     position: absolute;
     left: 5px;
-    top: 2px;
-    height: 36px;
+    top: 0;
+    height: 40px;
+    background: #fff;
+    border-radius: 50%;
 }
 .error {
     color: red;
