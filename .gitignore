@@ -6,3 +6,4 @@ test_results.json
 cookie-keys.json
 logs.json
 failures
+.DS_Store

@@ -24,6 +24,7 @@ var GITHUB_CLIENT_ID = null;
 var GITHUB_CLIENT_SECRET = null;
 var COOKIE_KEYS = null;
 global.LOGS = [];
+global.REPOSITORY_URL = "https://github.com/GuillaumeGomez/test-rust-docs-ui";
 
 function make_link(url, text, blank, _class) {
     if (typeof _class !== "undefined") {
@@ -97,6 +98,7 @@ async function get_admin(response, request) {
 </head>
 <body>
     <header>
+        ${make_link(REPOSITORY_URL, '<img src="/github.png">', true, 'repository')}
         <div>rustdoc UI tests - Admin</div>
         ${make_link('/', 'Home', null, 'log-in button')}
     </header>
@@ -162,6 +164,7 @@ async function get_status(response, request, server) {
 </head>
 <body>
     <header>
+        ${make_link(REPOSITORY_URL, '<img src="/github.png">', true, 'repository')}
         <div>rustdoc UI tests</div>${github_part}
     </header>
     <div class="content">${error}
