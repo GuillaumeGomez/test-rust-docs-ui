@@ -49,3 +49,17 @@ pub trait AnotherOne {
     /// Some func 3.
     fn func3();
 }
+
+/// Check for "i" signs in lists!
+///
+/// 1. elem 1
+/// 2.test 1
+///   ```compile_fail
+///   fn foo() {}
+///   ```
+/// 3. elem 3
+/// 4. ```ignore
+///    fn foo() {}
+///    ```
+/// 5. elem 5
+pub fn check_list_code_block() {}
