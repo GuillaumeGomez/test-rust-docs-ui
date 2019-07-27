@@ -362,7 +362,7 @@ async function buildDoc(runId, rustdocPath) {
     return execFile(rustdocPath, args);
 }
 
-function run_tests(id, url, response) {
+function run_tests(id, url, msg_url, response) {
     add_log(`Starting tests for ${url}`);
     let ret = utils.installRustdoc(id);
     if (ret !== true) {
@@ -381,14 +381,14 @@ function run_tests(id, url, response) {
                 }
                 add_log(`Tests failed for ${url}: ${output}`);
                 response.end("Rustdoc-UI tests failed (" + errors + " " + failure + ")...");
-                utils.send_github_message(url, GITHUB_BOT_TOKEN,
+                utils.send_github_message(msg_url, GITHUB_BOT_TOKEN,
                                           "Rustdoc-UI tests failed \"successfully\"!\n\n<details>" +
                                           "<summary><i>Click to expand the log.</i></summary>\n\n" +
                                           "```plain\n" + output + "\n```\n</details>");
             } else {
                 add_log(`Tests ended successfully for ${url}`);
                 response.end("Rustdoc-UI tests passed!");
-                utils.send_github_message(url, GITHUB_BOT_TOKEN,
+                utils.send_github_message(msg_url, GITHUB_BOT_TOKEN,
                                           "Rustdoc-UI tests ended successfully (and I know that " +
                                           "through (not so dark) magic)!\n\n<details><summary><i>" +
                                           "Click to expand the log.</i></summary>\n\n```plain\n" +
@@ -464,7 +464,7 @@ async function github_event(response, request, server, body) {
                 }
             }
             if (id !== null) {
-                run_tests(id, content['issue']['html_url'], response);
+                run_tests(id, content['issue']['html_url'], content['issue']['url'], response);
                 return;
             }
         }
@@ -518,18 +518,19 @@ async function github_event(response, request, server, body) {
         }
         if (run_doc_ui === true) {
             add_log(`Received "run-doc-ui" command from ${content['issue']['html_url']}`);
-            const url = content['issue']['html_url'];
+            const pr_url = content['issue']['html_url'];
+            const msg_url = content['issue']['url'];
             // We wait for the rustdoc build to end before trying to get it.
             DOC_UI_RUNS[url] = false;
             if (specific_commit === null) {
                 specific_commit = get_top_commit(content['issue']['number']);
             }
             if (specific_commit !== null) {
-                utils.send_github_message(url, GITHUB_BOT_TOKEN, "Rustdoc-UI starting test...");
-                run_tests(specific_commit, content['issue']['html_url'], response);
+                utils.send_github_message(msg_url, GITHUB_BOT_TOKEN, "Rustdoc-UI starting test...");
+                run_tests(specific_commit, url, msg_url, response);
                 return;
             }
-            utils.send_github_message(url, GITHUB_BOT_TOKEN,
+            utils.send_github_message(msg_url, GITHUB_BOT_TOKEN,
                                       "Rustdoc-UI cannot start test, please add commit hash.");
         }
 
