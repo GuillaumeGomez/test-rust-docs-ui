@@ -410,7 +410,7 @@ function run_tests(id, url, response) {
     });
 }
 
-function get_top_commit(pull_number) {
+async function get_top_commit(pull_number) {
     const commits = await axios.get(`${config.GH_API_URL}/rust-lang/rust/pulls/${pull_number}/commits`).catch(e => {
         add_log(`get_top_commit: failed to get commit list for PR ${pull_number}: ${e}`);
     });
