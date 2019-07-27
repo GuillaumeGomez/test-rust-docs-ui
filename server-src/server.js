@@ -375,7 +375,8 @@ function run_tests(id, url, msg_url, response) {
         tester.runTests(["", "",
                          "--run-id", runId,
                          "--test-folder", "ui-tests/",
-                         "--failure-folder", config.FAILURES_FOLDER]).then(x => {
+                         "--failure-folder", config.FAILURES_FOLDER,
+                         "--doc-path", utils.addSlash(runId) + "lib/"]).then(x => {
             let [output, errors] = x;
             response.statusCode = 200;
             if (errors > 0) {
