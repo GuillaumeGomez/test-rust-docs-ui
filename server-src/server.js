@@ -467,6 +467,7 @@ async function github_event(response, request, server, body) {
                 }
             }
             if (id !== null) {
+                utils.send_github_message(msg_url, GITHUB_BOT_TOKEN, "Rustdoc-UI starting test (thanks to @bors try!)...");
                 run_tests(id, content['issue']['html_url'], content['issue']['url'], response);
                 return;
             }
