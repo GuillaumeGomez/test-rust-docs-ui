@@ -27,10 +27,7 @@ function updateRepository() {
     var ret = "";
     try {
         ret = execFileSync("git", ["fetch", "origin"]);
-        ret += '\n\n' + execFileSync("git", ["branch", "-Df", "origin/master"]);
-        ret += '\n\n' + execFileSync("git", ["checkout", "origin/master"]);
-        ret += '\n\n' + execFileSync("git", ["branch", "-D", "master"]);
-        ret += '\n\n' + execFileSync("git", ["checkout", "-b", "master"]);
+        ret += '\n\n' + execFileSync("git", ["pull", "-f", "origin", "master"]);
         return ret;
     } catch(err) {
         const log = ret + "\n\nCannot update server sources: '" + err + "'";
