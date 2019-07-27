@@ -125,7 +125,7 @@ async function get_admin(response, request) {
 async function get_status(response, request, server) {
     let cookies = utils.get_cookies(request, response, COOKIE_KEYS);
 
-    let lines = TESTS_RESULTS.slice(0).reverse().map(x => {
+    let lines = TESTS_RESULTS.map(x => {
         let s_date = utils.format_date(x['time']);
         let s = `<div class="line${x['errors'] > 0 ? ' error' : ''}" onclick="showHideLogs(this)">`;
         s += `<div class="label">${make_link_from_url(x['html_url'])}${s_date}</div>`;
@@ -171,7 +171,7 @@ async function get_status(response, request, server) {
     <div class="content">${error}
         <div class="running">There is currently ${RUNNING_TESTS.length} ${RUNNING_TESTS.length > 1 ? 'tests running: (' + RUNNING_TESTS.map(make_link_from_url).join(', ') + ').' : 'test running.'}</div>
         <div class="title">List of last tests results</div>
-        <div class="results">${lines}</div>
+        <div class="results">${lines.reverse()}</div>
     </div>
 </body>
 </html>`);
