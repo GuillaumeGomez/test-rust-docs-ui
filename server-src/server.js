@@ -410,6 +410,16 @@ function run_tests(id, url, response) {
     });
 }
 
+function get_top_commit(pull_number) {
+    const commits = await axios.get(`${config.GH_API_URL}/rust-lang/rust/pulls/${pull_number}/commits`).catch(e => {
+        add_log(`get_top_commit: failed to get commit list for PR ${pull_number}: ${e}`);
+    });
+    if (commits.length !== undefined && commits.length > 0) {
+        return commits[commits.length - 1];
+    }
+    return null;
+}
+
 // https://developer.github.com/v3/activity/events/types/#issuecommentevent
 async function github_event(response, request, server, body) {
     if (typeof body === 'undefined') {
@@ -502,10 +512,16 @@ async function github_event(response, request, server, body) {
             add_log(`Received "run-doc-ui" command from ${content['issue']['html_url']}`);
             // We wait for the rustdoc build to end before trying to get it.
             DOC_UI_RUNS[content['issue']['html_url']] = false;
+            if (specific_commit === null) {
+                specific_commit = get_top_commit(content['issue']['number']);
+            }
             if (specific_commit !== null) {
+                utils.send_github_message(url, GITHUB_BOT_TOKEN, "Rustdoc-UI starting test...");
                 run_tests(specific_commit, content['issue']['html_url'], response);
                 return;
             }
+            utils.send_github_message(url, GITHUB_BOT_TOKEN,
+                                      "Rustdoc-UI cannot start test, please add commit hash.");
         }
 
         response.end();
