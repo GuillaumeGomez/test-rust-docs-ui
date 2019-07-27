@@ -368,6 +368,7 @@ function run_tests(id, url, msg_url, response) {
     if (ret !== true) {
         add_error(`Cannot start tests for ${url}: ${ret}`)
         response.end("An error occurred:\n```text\n" + ret + "\n````");
+        utils.send_github_message(msg_url, GITHUB_BOT_TOKEN, "Failed to start test...");
         return;
     }
     buildDoc(id, "rustdoc").then(runId => {
@@ -523,7 +524,7 @@ async function github_event(response, request, server, body) {
             // We wait for the rustdoc build to end before trying to get it.
             DOC_UI_RUNS[pr_url] = false;
             if (specific_commit === null) {
-                specific_commit = get_top_commit(content['issue']['number']);
+                specific_commit = await get_top_commit(content['issue']['number']);
             }
             if (specific_commit !== null) {
                 utils.send_github_message(msg_url, GITHUB_BOT_TOKEN, "Rustdoc-UI starting test...");
