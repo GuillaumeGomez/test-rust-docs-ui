@@ -128,7 +128,7 @@ async function get_status(response, request, server) {
     let lines = TESTS_RESULTS.reverse().map(x => {
         let s_date = utils.format_date(x['time']);
         let s = `<div class="line${x['errors'] > 0 ? ' error' : ''}" onclick="showHideLogs(this)">`;
-        s += `<div class="label">${make_link_from_url(x['url'])}${s_date}</div>`;
+        s += `<div class="label">${make_link_from_url(x['html_url'])}${s_date}</div>`;
         if (x['errors'] > 0) {
             s += `<span class="errors">${x['errors']}</span>`;
         }
