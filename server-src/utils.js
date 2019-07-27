@@ -62,7 +62,7 @@ function installRustdoc(id) {
     try {
         execFileSync(exec_path, [id]);
     } catch(err) {
-        add_error(`Cannot install rustdoc from "${id}"`);
+        add_error(`Cannot install rustdoc from "${id}": ${err}`);
         return false;
     }
     return true;
@@ -72,7 +72,7 @@ function uninstallRustdoc(id) {
     try {
         execFileSync("rustup", ["uninstall", id]);
     } catch(err) {
-        add_error(`Cannot uninstall rustdoc from "${id}"`);
+        add_error(`Cannot uninstall rustdoc from "${id}": ${err}`);
     }
 }
 
