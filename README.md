@@ -205,13 +205,13 @@ Then:
 If you want to run tests locally, you can do so by running:
 
 ```bash
-> node server-src/tester.js --rustdoc-path rustdoc --output-path tests
+> node server-src/tester.js --rustdoc-path rustdoc --output-path tests --test-folder ui-tests
 ```
 
 If you added new tests and you want to generate images for it:
 
 ```bash
-node server-src/tester.js --rustdoc-path rustdoc --output-path tests --generate-images
+node server-src/tester.js --rustdoc-path rustdoc --output-path tests --generate-images --test-folder ui-tests
 ```
 
 If you want the list of the available commands, just run:
