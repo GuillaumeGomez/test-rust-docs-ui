@@ -521,13 +521,13 @@ async function github_event(response, request, server, body) {
             const pr_url = content['issue']['html_url'];
             const msg_url = content['issue']['url'];
             // We wait for the rustdoc build to end before trying to get it.
-            DOC_UI_RUNS[url] = false;
+            DOC_UI_RUNS[pr_url] = false;
             if (specific_commit === null) {
                 specific_commit = get_top_commit(content['issue']['number']);
             }
             if (specific_commit !== null) {
                 utils.send_github_message(msg_url, GITHUB_BOT_TOKEN, "Rustdoc-UI starting test...");
-                run_tests(specific_commit, url, msg_url, response);
+                run_tests(specific_commit, pr_url, msg_url, response);
                 return;
             }
             utils.send_github_message(msg_url, GITHUB_BOT_TOKEN,
