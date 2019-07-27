@@ -27,13 +27,15 @@ function updateRepository() {
     var ret = "";
     try {
         ret = execFileSync("git", ["fetch", "origin"]);
+        ret += '\n\n' + execFileSync("git", ["branch", "-Df", "origin/master"]);
         ret += '\n\n' + execFileSync("git", ["checkout", "origin/master"]);
         ret += '\n\n' + execFileSync("git", ["branch", "-D", "master"]);
         ret += '\n\n' + execFileSync("git", ["checkout", "-b", "master"]);
         return ret;
     } catch(err) {
-        add_error(ret + "\n\nCannot update server sources: '" + err + "'");
-        return "";
+        const log = ret + "\n\nCannot update server sources: '" + err + "'";
+        add_error(log);
+        return log;
     }
 }
 
