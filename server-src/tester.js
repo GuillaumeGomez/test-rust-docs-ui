@@ -1,13 +1,3 @@
-// Copyright 2018 The Rust Project Developers. See the COPYRIGHT
-// file at the top-level directory of this distribution and at
-// http://rust-lang.org/COPYRIGHT.
-//
-// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
-// http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
-// <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
-// option. This file may not be copied, modified, or distributed
-// except according to those terms.
-
 const puppeteer = require('puppeteer');
 const fs = require('fs');
 const execFileSync = require('child_process').execFileSync;
@@ -17,8 +7,6 @@ const spawnSync = require('child_process').spawnSync;
 const utils = require('./utils.js');
 const add_warn = utils.add_warning;
 const config = require('./config.js');
-
-const TEST_FOLDER = 'ui-tests/';
 
 
 function loadContent(content) {
@@ -80,6 +68,7 @@ function make_url(img, runId) {
 
 function helper() {
     console.log("tester");
+    console.log("  --test-folder [PATH]  : path of the folder where `.gom` script files are");
     console.log("  --rustdoc-path [PATH] : path of the rustdoc executable to be used");
     console.log("  --run-id [id]         : commit id to be used (used as output path if");
     console.log("                          `--output-path` option isn't provided)");
@@ -90,7 +79,7 @@ function helper() {
     console.log("  --help | -h           : Show this text");
 }
 
-async function main(argv) {
+async function runTests(argv) {
     var logs = "";
 
     var rustdocPath = "";
@@ -98,6 +87,7 @@ async function main(argv) {
     var outputPath = "";
     var headless = true;
     var generateImages = false;
+    var testFolderPath = "";
 
     for (var it = 2; it < argv.length; ++it) {
         if (argv[it] === "--rustdoc-path") {
@@ -128,6 +118,13 @@ async function main(argv) {
         } else if (argv[it] === "--help" || argv[it] === "-h") {
             helper();
             return ["", 0];
+        } else if (argv[it] === "--test-folder") {
+            if (it + 1 < argv.length) {
+                testFolderPath = argv[it + 1] + utils.addSlash(argv[it + 1]);
+                it += 1;
+            } else {
+                return ["Missing id after '--test-folder' option", 1];
+            }
         } else {
             return [`Unknown option '${argv[it]}'\n` +
                     "Use '--help' if you want the list of the available commands", 1];
@@ -135,9 +132,11 @@ async function main(argv) {
     }
 
     if (rustdocPath.length === 0) {
-        return ["You need to provide '--rustdop-path' option!", 1];
+        return ["You need to provide '--rustdoc-path' option!", 1];
     } else if (runId.length === 0 && outputPath.length === 0) {
         return ["You need to provide '--run-id' and/or '--output-path' options!", 1];
+    } else if (testFolderPath.length === 0) {
+        return ["You need to provide '--test-folder' option!", 1];
     }
     if (outputPath.length === 0) {
         outputPath = runId;
@@ -171,8 +170,8 @@ async function main(argv) {
     var loaded = [];
     var failures = 0;
     var ignored = 0;
-    fs.readdirSync(TEST_FOLDER).forEach(function(file) {
-        var fullPath = TEST_FOLDER + file;
+    fs.readdirSync(testFolderPath).forEach(function(file) {
+        var fullPath = testFolderPath + file;
         if (file.endsWith(".gom") && fs.lstatSync(fullPath).isFile()) {
             var commands = parser.parseContent(utils.readFile(fullPath));
             if (commands.hasOwnProperty("error")) {
@@ -226,13 +225,13 @@ async function main(argv) {
                 continue;
             }
 
-            var newImage = `${TEST_FOLDER}${loaded[i]["file"]}-${runId}.png`;
+            var newImage = `${testFolderPath}${loaded[i]["file"]}-${runId}.png`;
             await page.screenshot({
                 path: newImage,
                 fullPage: true,
             });
 
-            var originalImage = TEST_FOLDER + loaded[i]["file"] + ".png";
+            var originalImage = `${testFolderPath}${loaded[i]["file"]}.png`;
             console.log("check for " + originalImage);
             if (fs.existsSync(originalImage) === false) {
                 if (generateImages === false) {
@@ -247,7 +246,7 @@ async function main(argv) {
             if (comparePixels(PNG.load(newImage).imgData,
                               PNG.load(originalImage).imgData) === false) {
                 failures += 1;
-                let saved = save_failure(TEST_FOLDER, loaded[i]["file"] + `-${runId}.png`,
+                let saved = save_failure(testFolderPath, loaded[i]["file"] + `-${runId}.png`,
                                          loaded[i]["file"] + ".png", runId);
                 if (saved === true) {
                     logs = appendLog(logs,
@@ -287,7 +286,7 @@ async function main(argv) {
 }
 
 if (require.main === module) {
-    main(process.argv).then(x => {
+    runTests(process.argv).then(x => {
         var [output, error_code] = x;
         console.log(output)
         process.exit(error_code);
@@ -297,6 +296,6 @@ if (require.main === module) {
     });
 } else {
     module.exports = {
-        runTests: main,
+        runTests: runTests,
     };
 }

@@ -9,7 +9,7 @@ String.prototype.replaceAll = function(search, replace_with) {
 };
 
 function addSlash(s) {
-    if (!s.endsWith('/')) {
+    if (!s.endsWith('/') && s.length > 0) {
         return s + '/';
     }
     return s;

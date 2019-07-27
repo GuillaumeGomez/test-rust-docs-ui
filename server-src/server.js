@@ -344,7 +344,7 @@ function run_tests(id, url, response) {
         response.end("An error occurred:\n```text\n" + ret + "\n````");
         return;
     }
-    tester.runTests(["", "", "--rustdoc-path", "rustdoc", "--run-id", id]).then(x => {
+    tester.runTests(["", "", "--rustdoc-path", "rustdoc", "--run-id", id, "--test-folder", "ui-tests/"]).then(x => {
         let [output, errors] = x;
         response.statusCode = 200;
         if (errors > 0) {
