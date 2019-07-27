@@ -120,7 +120,7 @@ async function runTests(argv) {
             return ["", 0];
         } else if (argv[it] === "--test-folder") {
             if (it + 1 < argv.length) {
-                testFolderPath = argv[it + 1] + utils.addSlash(argv[it + 1]);
+                testFolderPath = utils.addSlash(argv[it + 1]);
                 it += 1;
             } else {
                 return ["Missing id after '--test-folder' option", 1];
