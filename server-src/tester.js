@@ -53,7 +53,7 @@ function save_failure(folderIn, newImage, originalImage, runId) {
         }
     }
     try {
-        fs.renameSync(folderIn + newImage, config.FAILURES_FOLDER + runId + '/' + newImage);
+        fs.renameSync(folderIn + newImage, config.FAILURES_FOLDER + utils.addSlash(runId) + newImage);
     } catch(err) {
         add_warn(`Error while trying to move files: "${err}"`);
         // failed to move files...
@@ -63,7 +63,7 @@ function save_failure(folderIn, newImage, originalImage, runId) {
 }
 
 function make_url(img, runId) {
-    return config.SERVER_URL + config.FAILURES_FOLDER + runId + '/' + img;
+    return config.SERVER_URL + config.FAILURES_FOLDER + utils.addSlash(runId) + img;
 }
 
 function helper() {
@@ -146,6 +146,8 @@ async function runTests(argv) {
     // don't have an ugly name.
     if (runId.length === 0) {
         runId = "test";
+    } else if (runId.indexOf("/") !== -1) {
+        return ["'--run-id' cannot contain '/' character!", 1];
     }
 
     logs = "=> Starting doc-ui tests...";
