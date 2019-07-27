@@ -368,7 +368,11 @@ function run_tests(id, url, msg_url, response) {
     if (ret !== true) {
         add_error(`Cannot start tests for ${url}: ${ret}`)
         response.end("An error occurred:\n```text\n" + ret + "\n````");
-        utils.send_github_message(msg_url, GITHUB_BOT_TOKEN, "Failed to start test...");
+        utils.send_github_message(
+            msg_url,
+            GITHUB_BOT_TOKEN,
+            "Failed to start test (maybe start a `@bors try` or give a commit hash?)"
+        );
         return;
     }
     buildDoc(id, "rustdoc").then(runId => {
@@ -551,7 +555,7 @@ async function github_event(response, request, server, body) {
                 return;
             }
             utils.send_github_message(msg_url, GITHUB_BOT_TOKEN,
-                                      "Rustdoc-UI cannot start test, please add commit hash.");
+                                      "Waiting for `@bors try` to run or please add a commit hash");
         }
 
         response.end();
