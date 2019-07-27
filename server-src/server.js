@@ -138,7 +138,7 @@ async function get_status(response, request, server) {
         s += `<code class="logs" onclick="preventEv(event)">${utils.text_to_html(x['text'])}</code>`;
         s += '</div>';
         return s;
-    }).join('');
+    });
 
     let error = "";
     if (typeof cookies.get('Error') !== "undefined" && cookies.get('Error').length > 0) {
@@ -174,7 +174,7 @@ async function get_status(response, request, server) {
     <div class="content">${error}
         <div class="running">There is currently ${RUNNING_TESTS.length} ${RUNNING_TESTS.length > 1 ? 'tests running: (' + RUNNING_TESTS.map(make_link_from_url).join(', ') + ').' : 'test running.'}</div>
         <div class="title">List of last tests results</div>
-        <div class="results">${lines.reverse()}</div>
+        <div class="results">${lines.reverse().join('')}</div>
     </div>
 </body>
 </html>`);
