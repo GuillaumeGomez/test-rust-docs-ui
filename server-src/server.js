@@ -310,16 +310,21 @@ function parseData(response, request, server, func) {
     }).on('data', (chunk) => {
         body.push(chunk);
     }).on('end', () => {
-        if (typeof func === 'undefined') {
-            let contentType = request.headers['content-type'];
+        try {
+            if (typeof func === 'undefined') {
+                let contentType = request.headers['content-type'];
 
-            if (contentType === "application/json") {
-                return github_event(response, request, server, body);
+                if (contentType === "application/json") {
+                    return github_event(response, request, server, body);
+                } else {
+                    return get_status(response, request, server);
+                }
             } else {
-                return get_status(response, request, server);
+                return func(response, request, server, body);
             }
-        } else {
-            return func(response, request, server, body);
+        } catch(err) {
+            response.write(`An error occurred:<br>${err}`);
+            response.end();
         }
     });
 }
