@@ -1,1 +1,2 @@
-goToUrl: ./fn.check_list_code_block.html
+goTo: file://{current-dir}/{doc-path}/index.html
+goTo: ./fn.check_list_code_block.html

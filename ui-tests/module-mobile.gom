@@ -1,3 +1,4 @@
+goTo: file://{current-dir}/{doc-path}/index.html
 click: .srclink
 click: #sidebar-toggle
 waitfor: 2000
