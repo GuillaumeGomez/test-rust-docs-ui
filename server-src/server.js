@@ -420,11 +420,13 @@ function run_tests(id, url, msg_url, response) {
 }
 
 async function get_top_commit(pull_number) {
-    const commits = await axios.get(`${config.GH_API_URL}/repos/rust-lang/rust/pulls/${pull_number}/commits`).catch(e => {
+    let res = await axios.get(`${config.GH_API_URL}/repos/rust-lang/rust/pulls/${pull_number}/commits`).catch(e => {
         add_log(`get_top_commit: failed to get commit list for PR ${pull_number}: ${e}`);
     });
+    await res.data;
+    const commits = res.data;
     if (commits.length !== undefined && commits.length > 0) {
-        return commits[commits.length - 1];
+        return commits[commits.length - 1]['sha'];
     }
     return null;
 }
