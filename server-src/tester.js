@@ -142,25 +142,8 @@ async function runTests(argv) {
         outputPath = runId;
     }
 
-    var currentDir = utils.getCurrentDir();
-
-    const outPath = currentDir + utils.addSlash(outputPath);
-    const docPath = outPath + "lib/";
-    try {
-        var args = [];
-        if (runId.length !== 0) {
-            args.push(`+${runId}`);
-        }
-        args.push("test-docs/src/lib.rs");
-        args.push("-o");
-        args.push(outPath);
-        execFileSync(rustdocPath, args);
-    } catch (err) {
-        return ["=== STDERR ===\n" + err.stderr + "\n\n=== STDOUT ===\n" + err.stdout, 1];
-    }
-
-    // If no run id has been provided to the script, we create a little one so test files don't
-    // have an ugly name.
+    // If no run id has been provided to the script, we create a little one so test files
+    // don't have an ugly name.
     if (runId.length === 0) {
         runId = "test";
     }
