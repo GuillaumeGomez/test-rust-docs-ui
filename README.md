@@ -55,15 +55,34 @@ movecursorto: .element
 movecursorto: (10, 12)
 ```
 
-#### gotourl
+#### goto
 
-**gotourl** command changes the current page to the given path/url. It expects a path (starting with `.` or `/`) or a URL. Examples:
+**goto** command changes the current page to the given path/url. It expects a path (starting with `.` or `/`) or a URL. Examples:
 
 ```
-gotourl: https://test.com
-gotourl: http://test.com
-gotourl: /test
-gotourl: ../test
+goto: https://test.com
+goto: http://test.com
+goto: /test
+goto: ../test
+goto: file://some-location/index.html
+```
+
+/!\\ If you want to use `goto` with `file://`, please remember that you must pass a full path to the web browser (from the root). You can access this information direction with `{current-dir}`:
+
+```
+goto: file://{current-dir}/my-folder/index.html
+```
+
+If you don't want to rewrite your doc path everytime, you can run the test with the `doc-path` argument and then use it as follow:
+
+```
+goto: file://{doc-path}/file.html
+```
+
+You can of course use `{doc-path}` and `{current-dir}` at the same time:
+
+```
+goto: file://{current-dir}/{doc-path}/file.html
 ```
 
 #### scrollto
@@ -202,16 +221,22 @@ Then:
 
 ## Usage
 
-If you want to run tests locally, you can do so by running:
+If you want to run tests locally, you first need to build `test_docs` doc with rustdoc:
 
 ```bash
-> node server-src/tester.js --rustdoc-path rustdoc --output-path tests --test-folder ui-tests
+> cd test_docs && cargo doc
+```
+
+Then you can launch tests by running:
+
+```bash
+> node server-src/tester.js --test-folder ui-tests --generate-images --failure-folder failures/ --doc-path test-docs/target/doc/test_docs/
 ```
 
 If you added new tests and you want to generate images for it:
 
 ```bash
-node server-src/tester.js --rustdoc-path rustdoc --output-path tests --generate-images --test-folder ui-tests
+> node server-src/tester.js --test-folder ui-tests --generate-images --failure-folder failures/ --doc-path test-docs/target/doc/test_docs/ --generate-images
 ```
 
 If you want the list of the available commands, just run:

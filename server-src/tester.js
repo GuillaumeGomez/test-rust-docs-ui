@@ -6,7 +6,7 @@ const parser = require('./parser.js');
 const spawnSync = require('child_process').spawnSync;
 const utils = require('./utils.js');
 const add_warn = utils.add_warning;
-const config = require('./config.js');
+const process = require('process');
 
 
 function loadContent(content) {
@@ -20,9 +20,15 @@ function comparePixels(img1, img2) {
     return img1.equals(img2);
 }
 
-function appendLog(logs, newLog, noBackline) {
+function appendLog(logs, newLog, saveLogs, noBackline) {
     if (logs.length === 0 || noBackline === true) {
+        if (saveLogs !== true) {
+            process.stdout.write(`${newLog}`);
+        }
         return `${logs}${newLog}`;
+    }
+    if (saveLogs !== true) {
+        process.stdout.write(`\n${newLog}`);
     }
     return `${logs}\n${newLog}`;
 }
@@ -38,22 +44,22 @@ function removeFolder(folderPath) {
     return {};
 }
 
-function save_failure(folderIn, newImage, originalImage, runId) {
-    if (fs.existsSync(config.FAILURES_FOLDER) === false) {
+function save_failure(folderIn, failuresFolder, newImage, originalImage, runId) {
+    if (fs.existsSync(failuresFolder) === false) {
         // We cannot save the failures...
         return false;
     }
-    if (fs.existsSync(config.FAILURES_FOLDER + runId) === false) {
+    if (fs.existsSync(failuresFolder + runId) === false) {
         try {
-            fs.mkdirSync(config.FAILURES_FOLDER + runId);
+            fs.mkdirSync(failuresFolder + runId);
         } catch(err) {
-            add_warn(`Error while trying to make folder "${config.FAILURES_FOLDER + runId}": ${err}`);
+            add_warn(`Error while trying to make folder "${failuresFolder + runId}": ${err}`);
             // Failed to create folder to save failures...
             return false;
         }
     }
     try {
-        fs.renameSync(folderIn + newImage, config.FAILURES_FOLDER + utils.addSlash(runId) + newImage);
+        fs.renameSync(folderIn + newImage, failuresFolder + utils.addSlash(runId) + newImage);
     } catch(err) {
         add_warn(`Error while trying to move files: "${err}"`);
         // failed to move files...
@@ -62,54 +68,37 @@ function save_failure(folderIn, newImage, originalImage, runId) {
     return true;
 }
 
-function make_url(img, runId) {
-    return config.SERVER_URL + config.FAILURES_FOLDER + utils.addSlash(runId) + img;
-}
-
 function helper() {
     console.log("tester");
-    console.log("  --test-folder [PATH]  : path of the folder where `.gom` script files are");
-    console.log("  --rustdoc-path [PATH] : path of the rustdoc executable to be used");
-    console.log("  --run-id [id]         : commit id to be used (used as output path if");
-    console.log("                          `--output-path` option isn't provided)");
-    console.log("  --output-path [PATH]  : path where doc will be generated");
-    console.log("  --generate-images     : if provided, it'll generate test images and won't");
-    console.log("                          run comparison tests");
-    console.log("  --no-headless         : Disable headless mode");
-    console.log("  --help | -h           : Show this text");
+    console.log("  --test-folder [PATH]    : path of the folder where `.gom` script files are");
+    console.log("  --failure-folder [PATH] : path of the folder where failed tests image will");
+    console.log("                            be placed");
+    console.log("  --run-id [id]           : id to be used for failed images extension ('test'");
+    console.log("                            by default)");
+    console.log("  --generate-images       : if provided, it'll generate test images and won't");
+    console.log("                            run comparison tests");
+    console.log("  --doc-path [PATH]       : doc path to be used on `goto` local paths");
+    console.log("  --no-headless           : Disable headless mode");
+    console.log("  --help | -h             : Show this text");
 }
 
-async function runTests(argv) {
+async function runTests(argv, saveLogs = true) {
     var logs = "";
 
-    var rustdocPath = "";
     var runId = "";
-    var outputPath = "";
     var headless = true;
     var generateImages = false;
     var testFolderPath = "";
+    var failuresFolderPath = "";
+    var docPath = "/";
 
     for (var it = 2; it < argv.length; ++it) {
-        if (argv[it] === "--rustdoc-path") {
-            if (it + 1 < argv.length) {
-                rustdocPath = argv[it + 1];
-                it += 1;
-            } else {
-                return ["Missing path after '--rustdoc-path' option", 1];
-            }
-        } else if (argv[it] === "--run-id") {
+        if (argv[it] === "--run-id") {
             if (it + 1 < argv.length) {
                 runId = argv[it + 1];
                 it += 1;
             } else {
                 return ["Missing id after '--run-id' option", 1];
-            }
-        } else if (argv[it] === "--output-path") {
-            if (it + 1 < argv.length) {
-                outputPath = argv[it + 1];
-                it += 1;
-            } else {
-                return ["Missing id after '--output-path' option", 1];
             }
         } else if (argv[it] === "--generate-images") {
             generateImages = true;
@@ -123,7 +112,21 @@ async function runTests(argv) {
                 testFolderPath = utils.addSlash(argv[it + 1]);
                 it += 1;
             } else {
-                return ["Missing id after '--test-folder' option", 1];
+                return ["Missing path after '--test-folder' option", 1];
+            }
+        } else if (argv[it] === "--doc-path") {
+            if (it + 1 < argv.length) {
+                docPath = utils.addSlash(argv[it + 1]);
+                it += 1;
+            } else {
+                return ["Missing path after '--doc-path' option", 1];
+            }
+        } else if (argv[it] === "--failure-folder") {
+            if (it + 1 < argv.length) {
+                failuresFolderPath = utils.addSlash(argv[it + 1]);
+                it += 1;
+            } else {
+                return ["Missing path after '--failure-folder' option", 1];
             }
         } else {
             return [`Unknown option '${argv[it]}'\n` +
@@ -131,15 +134,10 @@ async function runTests(argv) {
         }
     }
 
-    if (rustdocPath.length === 0) {
-        return ["You need to provide '--rustdoc-path' option!", 1];
-    } else if (runId.length === 0 && outputPath.length === 0) {
-        return ["You need to provide '--run-id' and/or '--output-path' options!", 1];
-    } else if (testFolderPath.length === 0) {
+    if (testFolderPath.length === 0) {
         return ["You need to provide '--test-folder' option!", 1];
-    }
-    if (outputPath.length === 0) {
-        outputPath = runId;
+    } else if (failuresFolderPath.length === 0) {
+        return ["You need to provide '--failure-folder' option!", 1];
     }
 
     // If no run id has been provided to the script, we create a little one so test files
@@ -150,23 +148,29 @@ async function runTests(argv) {
         return ["'--run-id' cannot contain '/' character!", 1];
     }
 
-    logs = "=> Starting doc-ui tests...";
+    logs = appendLog("", "=> Starting doc-ui tests...\n", saveLogs);
 
     var loaded = [];
     var failures = 0;
     var ignored = 0;
+    var total = 0;
     fs.readdirSync(testFolderPath).forEach(function(file) {
         var fullPath = testFolderPath + file;
         if (file.endsWith(".gom") && fs.lstatSync(fullPath).isFile()) {
-            var commands = parser.parseContent(utils.readFile(fullPath));
+            total += 1;
+            var commands = parser.parseContent(utils.readFile(fullPath), docPath);
             if (commands.hasOwnProperty("error")) {
-                logs = appendLog(logs, file.substr(0, file.length - 4) + "... FAILED");
-                logs = appendLog(logs, `[line ${commands[i]["line"]}: ${commands[i]["error"]}`);
+                logs = appendLog(logs, file.substr(0, file.length - 4) + "... FAILED", saveLogs);
+                logs = appendLog(logs,
+                                 `[ERROR] line ${commands["line"]}: ${commands["error"]}`,
+                                 saveLogs);
+                failures += 1;
                 return;
             }
             if (commands["instructions"].length === 0) {
-                logs = appendLog(logs, file.substr(0, file.length - 4) + "... FAILED");
-                logs = appendLog(logs, "No command to execute");
+                logs = appendLog(logs, file.substr(0, file.length - 4) + "... FAILED", saveLogs);
+                logs = appendLog(logs, "No command to execute", saveLogs);
+                failures += 1;
                 return;
             }
             loaded.push({"file": file.substr(0, file.length - 4), "commands": commands["instructions"]});
@@ -184,28 +188,24 @@ async function runTests(argv) {
     }
     const browser = await puppeteer.launch(options);
     for (var i = 0; i < loaded.length; ++i) {
-        logs = appendLog(logs, loaded[i]["file"] + "... ");
+        logs = appendLog(logs, loaded[i]["file"] + "... ", saveLogs);
         const page = await browser.newPage();
         try {
-            await page.goto('file://' + docPath + "index.html");
-
             error_log = "";
             const commands = loaded[i]["commands"];
             for (var x = 0; x < commands.length; ++x) {
-                await loadContent(commands[x])(page).catch(err => {
-                    error_log = err.toString() + `: for command {${commands[x].join(';')}} `;
+                await loadContent(commands[x]['code'])(page).catch(err => {
+                    error_log = `[ERROR] ${err.toString()}: for command "${commands[x]['original']}"`;
                 });
                 if (error_log.length > 0) {
-                    failures += 1;
-                    logs = appendLog(logs, error_log);
                     break;
                 }
                 // We wait a bit between each command to be sure the browser can follow.
                 await page.waitFor(100);
             }
             if (error_log.length > 0) {
-                logs = appendLog(logs, 'FAILED', true);
-                logs = appendLog(logs, loaded[i]["file"] + " output:\n" + error_log + '\n');
+                logs = appendLog(logs, 'FAILED', saveLogs, true);
+                logs = appendLog(logs, error_log + '\n', saveLogs);
                 failures += 1;
                 continue;
             }
@@ -217,32 +217,35 @@ async function runTests(argv) {
             });
 
             var originalImage = `${testFolderPath}${loaded[i]["file"]}.png`;
-            console.log("check for " + originalImage);
             if (fs.existsSync(originalImage) === false) {
                 if (generateImages === false) {
                     ignored += 1;
-                    logs = appendLog(logs, 'ignored ("' + originalImage + '" not found)', true);
+                    logs = appendLog(logs, 'ignored ("' + originalImage + '" not found)', saveLogs,
+                                     true);
                 } else {
                     fs.renameSync(newImage, originalImage);
-                    logs = appendLog(logs, 'generated', true);
+                    logs = appendLog(logs, 'generated', saveLogs, true);
                 }
                 continue;
             }
             if (comparePixels(PNG.load(newImage).imgData,
                               PNG.load(originalImage).imgData) === false) {
                 failures += 1;
-                let saved = save_failure(testFolderPath, loaded[i]["file"] + `-${runId}.png`,
+                let saved = save_failure(testFolderPath, failuresFolderPath,
+                                         loaded[i]["file"] + `-${runId}.png`,
                                          loaded[i]["file"] + ".png", runId);
                 if (saved === true) {
                     logs = appendLog(logs,
                                      'FAILED (images "' +
-                                     make_url(`${loaded[i]["file"]}-${runId}.png`, runId) +
-                                     '" and "' + make_url(loaded[i]["file"] + '.png', runId) +
-                                     '" are different)', true);
+                                     `${loaded[i]["file"]}-${runId}.png` +
+                                     '" and "' + loaded[i]["file"] + '.png' +
+                                     '" are different)',
+                                     saveLogs, true);
                 } else {
                     logs = appendLog(logs,
                                      'FAILED (images "' + newImage + '" and "' +
-                                     originalImage + '" are different)', true);
+                                     originalImage + '" are different)',
+                                     saveLogs, true);
                 }
                 continue;
             }
@@ -250,30 +253,30 @@ async function runTests(argv) {
             fs.unlinkSync(newImage);
         } catch (err) {
             failures += 1;
-            logs = appendLog(logs, 'FAILED', true);
-            logs = appendLog(logs, loaded[i]["file"] + " output:\n" + err + '\n');
+            logs = appendLog(logs, 'FAILED', saveLogs, true);
+            logs = appendLog(logs, loaded[i]["file"] + " output:\n" + err + '\n', saveLogs);
             continue;
         }
         await page.close();
-        logs = appendLog(logs, 'ok', true);
+        logs = appendLog(logs, 'ok', saveLogs, true);
     }
     await browser.close();
 
-    const ret = removeFolder(outPath);
-    if (ret.hasOwnProperty("error")) {
-        logs = appendLog(logs, ret["error"]);
-    }
+    logs = appendLog(logs,
+                     "\n<= doc-ui tests done: " + (total - failures - ignored) +
+                     " succeeded, " + ignored + " ignored, " + failures + " failed",
+                     saveLogs);
 
-    logs = appendLog(logs, "<= doc-ui tests done: " + (loaded.length - failures - ignored) +
-                           " succeeded, " + ignored + " ignored, " + failures + " failed");
+    if (saveLogs !== true) {
+        process.stdout.write("\n");
+    }
 
     return [logs, failures];
 }
 
 if (require.main === module) {
-    runTests(process.argv).then(x => {
+    runTests(process.argv, false).then(x => {
         var [output, error_code] = x;
-        console.log(output)
         process.exit(error_code);
     }).catch(err => {
         console.log(err);

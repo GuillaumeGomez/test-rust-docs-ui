@@ -1,4 +1,6 @@
 var os = require('os');
+const utils = require('./utils.js');
+
 
 function getString(content) {
     if (content.length < 1) {
@@ -122,13 +124,38 @@ function parseMoveCursorTo(line) {
     return {"error": "Invalid CSS selector"};
 }
 
+function handlePathParameters(line, split, join) {
+    let parts = line.split(split);
+    if (parts.length > 1) {
+        for (let i = 1; i < parts.length; ++i) {
+            if (parts[i].charAt(0) === '/') { // to avoid having "//"
+                parts[i] = parts[i].substr(1);
+            }
+        }
+        line = parts.join(join);
+    }
+    return line;
+}
+
 // Possible incomes:
 //
 // * relative path (example: ../struct.Path.html)
 // * full URL (for example: https://doc.rust-lang.org/std/struct.Path.html)
-function parseGoToUrl(line) {
+// * local path (example: file://some-file.html)
+//   /!\ Please note for this one that you can use "{doc-path}" inside it if you want to use
+//       the "--doc-path" argument. For example: "file://{doc-path}/index.html"
+//   /!\ Please also note that you need to provide a full path to the web browser. You can add
+//       the full current path by using "{current-dir}". For example:
+//       "file://{current-dir}{doc-path}/index.html"
+function parseGoTo(line, docPath) {
     // We just check if it goes to an HTML file, not checking much though...
     if (line.startsWith("http") || line.startsWith("www.")) {
+        return {"instructions": [
+            `await page.goto("${line}")`,
+        ]};
+    } else if (line.startsWith("file://")) {
+        line = handlePathParameters(line, "{doc-path}", docPath);
+        line = handlePathParameters(line, "{current-dir}", utils.getCurrentDir());
         return {"instructions": [
             `await page.goto("${line}")`,
         ]};
@@ -202,7 +229,7 @@ function parseLocalStorage(line) {
 const ORDERS = {
     'click': parseClick,
     'focus': parseFocus,
-    'gotourl': parseGoToUrl,
+    'goto': parseGoTo,
     'movecursorto': parseMoveCursorTo,
     'scrollto': parseScrollTo,
     'size': parseSize,
@@ -211,25 +238,29 @@ const ORDERS = {
     'localstorage': parseLocalStorage,
 };
 
-function parseContent(content) {
+function parseContent(content, docPath) {
     var lines = content.split(os.EOL);
     var commands = {"instructions": []};
     var res;
 
     for (var i = 0; i < lines.length; ++i) {
-        var line = lines[i].split('//')[0].trim();
+        var line = lines[i].split('// ')[0].trim();
         if (line.length === 0) {
             continue;
         }
         var order = line.split(':')[0].toLowerCase();
         if (ORDERS.hasOwnProperty(order)) {
-            res = ORDERS[order](lines[i].substr(order.length + 1).trim());
+            res = ORDERS[order](lines[i].substr(order.length + 1).trim(), docPath);
             if (res.error !== undefined) {
                 res.line = i + 1;
                 return [res];
             }
             for (var y = 0; y < res["instructions"].length; ++y) {
-                commands["instructions"].push(res["instructions"][y]);
+                if (commands["instructions"].length === 0 &&
+                    res["instructions"][y].startsWith('await page.goto(') !== true) {
+                    return {"error": "First command must be `goto`!", "line": i};
+                }
+                commands["instructions"].push({'code': res["instructions"][y], 'original': line});
             }
         } else {
             return {"error": `Unknown command "${order}"`, "line": i};

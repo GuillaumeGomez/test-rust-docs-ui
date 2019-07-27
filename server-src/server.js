@@ -372,7 +372,11 @@ function run_tests(id, url, msg_url, response) {
         return;
     }
     buildDoc(id, "rustdoc").then(runId => {
-        tester.runTests(["", "", "--run-id", runId, "--test-folder", "ui-tests/"]).then(x => {
+        tester.runTests(["", "",
+                         "--run-id", runId,
+                         "--test-folder", "ui-tests/",
+                         "--failure-folder", config.FAILURES_FOLDER,
+                         "--doc-path", utils.addSlash(runId) + "lib/"]).then(x => {
             let [output, errors] = x;
             response.statusCode = 200;
             if (errors > 0) {
@@ -407,6 +411,12 @@ function run_tests(id, url, msg_url, response) {
             // cleanup part
             DOC_UI_RUNS[url] = undefined;
             utils.uninstallRustdoc(runId);
+
+            // remove doc folder
+            const ret = removeFolder(runId);
+            if (ret.hasOwnProperty("error")) {
+                logs = appendLog(logs, ret["error"]);
+            }
         })
     }).catch(err => {
         const out = "=== STDERR ===\n" + err.stderr + "\n\n=== STDOUT ===\n" + err.stdout;
@@ -416,6 +426,12 @@ function run_tests(id, url, msg_url, response) {
         // cleanup part
         DOC_UI_RUNS[url] = undefined;
         utils.uninstallRustdoc(runId);
+
+        // remove doc folder
+        const ret = removeFolder(runId);
+        if (ret.hasOwnProperty("error")) {
+            logs = appendLog(logs, ret["error"]);
+        }
     });
 }
 
