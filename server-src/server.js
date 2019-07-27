@@ -359,7 +359,7 @@ async function buildDoc(runId, rustdocPath) {
     args.push("test-docs/src/lib.rs");
     args.push("-o");
     args.push(outPath);
-    return execFile(rustdocPath, args);
+    return await execFile(rustdocPath, args);
 }
 
 function run_tests(id, url, msg_url, response) {
