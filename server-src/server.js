@@ -40,6 +40,9 @@ function make_link(url, text, blank, _class) {
 }
 
 function make_link_from_url(url) {
+    if (typeof url !== "string") {
+        return "";
+    }
     var x = url.split('/');
     x = x[x.length - 1];
     return make_link(url, x, true);
