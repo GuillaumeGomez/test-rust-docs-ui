@@ -518,8 +518,9 @@ async function github_event(response, request, server, body) {
         }
         if (run_doc_ui === true) {
             add_log(`Received "run-doc-ui" command from ${content['issue']['html_url']}`);
+            const url = content['issue']['html_url'];
             // We wait for the rustdoc build to end before trying to get it.
-            DOC_UI_RUNS[content['issue']['html_url']] = false;
+            DOC_UI_RUNS[url] = false;
             if (specific_commit === null) {
                 specific_commit = get_top_commit(content['issue']['number']);
             }
