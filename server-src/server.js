@@ -345,6 +345,17 @@ function check_signature(req, body) {
     return req.headers['x-hub-signature'] === calculatedSignature;
 }
 
+function removeFolder(folderPath) {
+    try {
+        const upper = spawnSync('rm', ['-rf', folderPath]);
+        let stdout = upper.stdout.toString().trim();
+        let stderr = upper.stderr.toString().trim();
+    } catch (e) {
+        return {"error": e.toString()};
+    }
+    return {};
+}
+
 async function buildDoc(runId, rustdocPath, callback) {
     var currentDir = utils.getCurrentDir();
 

@@ -33,17 +33,6 @@ function appendLog(logs, newLog, saveLogs, noBackline) {
     return `${logs}\n${newLog}`;
 }
 
-function removeFolder(folderPath) {
-    try {
-        const upper = spawnSync('rm', ['-rf', folderPath]);
-        let stdout = upper.stdout.toString().trim();
-        let stderr = upper.stderr.toString().trim();
-    } catch (e) {
-        return {"error": e.toString()};
-    }
-    return {};
-}
-
 function save_failure(folderIn, failuresFolder, newImage, originalImage, runId) {
     if (fs.existsSync(failuresFolder) === false) {
         // We cannot save the failures...
