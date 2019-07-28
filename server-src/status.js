@@ -122,7 +122,7 @@ header > .repository {
     top: 5px;
 }
 
-.failures {
+header > .failures {
     position: absolute;
     left: 50px;
     top: 4px;
