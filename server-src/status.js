@@ -126,6 +126,17 @@ header > .failures {
     position: absolute;
     left: 50px;
     top: 4px;
+}
+
+.content > .failures > details > .container {
+    position: relative;
+    width: 100%;
+    padding: 10px;
+}
+
+.content > .failures > details > .container > img {
+    width: calc(50% - 6px);
+    margin: 0 auto;
 }`;
 }
 

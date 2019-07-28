@@ -192,7 +192,7 @@ function get_failures(response, request, server) {
             var currentDir = "";
             fs.readdirSync(fullPath).forEach(function(file) {
                 if (file.endsWith('png')) {
-                    currentDir += `<img src='/failures/${folder}/${file}'>`;
+                    currentDir += `<div class="container"><img src='/failures/${folder}/${file}'><img src='/ui-tests/${file.replace(`-${folder}`, '')}'></div>`;
                 }
             });
             if (currentDir.length !== 0) {
@@ -212,7 +212,7 @@ function get_failures(response, request, server) {
 <body>
     <header>
         ${make_link(REPOSITORY_URL, '<img src="/assets/github.png">', true, 'repository')}
-        <div>rustdoc UI tests</div>
+        <div>Failures</div>
         ${make_link('/', 'Home', null, 'log-in button')}
     </header>
     <div class="content">
@@ -299,8 +299,8 @@ function restart(response, request, server) {
 }
 
 function unknown_url(response, request) {
-    if (request.url.pathname.startsWith('/failures/')) {
-        content = utils.readFile(config.FAVICON_FILE, null, (error, data) => {
+    if (request.url.pathname.startsWith('/failures/') || request.url.pathname.startsWith('/ui-tests/')) {
+        content = utils.readFile(request.url.pathname.substr(1), null, (error, data) => {
             if (error) {
                 add_error(`failed to get file: ${error}`);
                 response.statusCode = 500;
