@@ -379,7 +379,7 @@ function run_tests(id, url, msg_url, response) {
     }
     buildDoc(id, "rustdoc", (error, stdout, stderr, runId) => {
         if (error) {
-            const out = "=== STDERR ===\n" + err.stderr + "\n\n=== STDOUT ===\n" + err.stdout;
+            const out = "=== STDERR ===\n" + stderr + "\n\n=== STDOUT ===\n" + stdout;
             add_log(`Doc build failed for ${url}: ${out}`);
             response.end("Failed to build doc:\n```text\n" + out + "\n```");
 
