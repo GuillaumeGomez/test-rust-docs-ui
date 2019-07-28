@@ -36,11 +36,15 @@ function updateRepository() {
     }
 }
 
-function readFile(filePath, encoding) {
-    if (typeof encoding !== 'undefined') {
+function readFile(filePath, encoding, callback) {
+    if (typeof encoding === 'undefined') {
+        encoding = 'utf8';
+    }
+    if (callback) {
+        fs.readFile(filePath, encoding, callback);
+    } else {
         return fs.readFileSync(filePath, encoding);
     }
-    return fs.readFileSync(filePath, 'utf8');
 }
 
 function writeToFile(filePath, content) {
