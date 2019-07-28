@@ -212,7 +212,7 @@ function get_failures(response, request, server) {
 <body>
     <header>
         ${make_link(REPOSITORY_URL, '<img src="/assets/github.png">', true, 'repository')}
-        <div>rustdoc UI tests</div>${github_part}
+        <div>rustdoc UI tests</div>
         ${make_link('/', 'Home', null, 'log-in button')}
     </header>
     <div class="content">
