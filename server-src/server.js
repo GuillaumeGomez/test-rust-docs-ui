@@ -170,7 +170,7 @@ async function get_status(response, request, server) {
 <body>
     <header>
         ${make_link(REPOSITORY_URL, '<img src="/assets/github.png">', true, 'repository')}
-        ${make_link('/failures', 'Failures', null, 'log-in button')}
+        ${make_link('/failures', 'Failures', null, 'failures button')}
         <div>rustdoc UI tests</div>${github_part}
     </header>
     <div class="content">${error}
