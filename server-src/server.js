@@ -370,6 +370,7 @@ async function buildDoc(runId, rustdocPath, callback) {
     args.push("test-docs/src/lib.rs");
     args.push("-o");
     args.push(outPath);
+    add_log(`Building docs... [current dir: ${currentDir}] -> ${rustdocPath} [${args}]`);
     execFile(rustdocPath, args, (error, stdout, stderr) => {
         callback(error, stdout, stderr, runId);
     });
