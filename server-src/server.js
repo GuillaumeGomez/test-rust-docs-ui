@@ -345,7 +345,7 @@ function check_signature(req, body) {
     return req.headers['x-hub-signature'] === calculatedSignature;
 }
 
-async function buildDoc(runId, rustdocPath) {
+async function buildDoc(runId, rustdocPath, callback) {
     var currentDir = utils.getCurrentDir();
 
     const outputPath = runId;
@@ -359,7 +359,9 @@ async function buildDoc(runId, rustdocPath) {
     args.push("test-docs/src/lib.rs");
     args.push("-o");
     args.push(outPath);
-    return await execFile(rustdocPath, args);
+    execFile(rustdocPath, args, (error, stdout, stderr) => {
+        callback(error, stdout, stderr, runId);
+    });
 }
 
 function run_tests(id, url, msg_url, response) {
@@ -375,7 +377,23 @@ function run_tests(id, url, msg_url, response) {
         );
         return;
     }
-    buildDoc(id, "rustdoc").then(runId => {
+    buildDoc(id, "rustdoc", (error, stdout, stderr, runId) => {
+        if (error) {
+            const out = "=== STDERR ===\n" + err.stderr + "\n\n=== STDOUT ===\n" + err.stdout;
+            add_log(`Doc build failed for ${url}: ${out}`);
+            response.end("Failed to build doc:\n```text\n" + out + "\n```");
+
+            // cleanup part
+            DOC_UI_RUNS[url] = undefined;
+            utils.uninstallRustdoc(runId);
+
+            // remove doc folder
+            const ret = removeFolder(runId);
+            if (ret.hasOwnProperty("error")) {
+                add_error(ret["error"]);
+            }
+            return;
+        }
         tester.runTests(["", "",
                          "--run-id", runId,
                          "--test-folder", "ui-tests/",
@@ -419,23 +437,9 @@ function run_tests(id, url, msg_url, response) {
             // remove doc folder
             const ret = removeFolder(runId);
             if (ret.hasOwnProperty("error")) {
-                logs = appendLog(logs, ret["error"]);
+                add_error(logs, ret["error"]);
             }
-        })
-    }).catch(err => {
-        const out = "=== STDERR ===\n" + err.stderr + "\n\n=== STDOUT ===\n" + err.stdout;
-        add_log(`Doc build failed for ${url}: ${out}`);
-        response.end("Failed to build doc:\n```text\n" + out + "\n```");
-
-        // cleanup part
-        DOC_UI_RUNS[url] = undefined;
-        utils.uninstallRustdoc(runId);
-
-        // remove doc folder
-        const ret = removeFolder(runId);
-        if (ret.hasOwnProperty("error")) {
-            logs = appendLog(logs, ret["error"]);
-        }
+        });
     });
 }
 
