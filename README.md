@@ -224,19 +224,19 @@ Then:
 If you want to run tests locally, you first need to build `test_docs` doc with rustdoc:
 
 ```bash
-> cd test_docs && cargo doc
+> cd test_docs && cargo doc && cd .. && mv test-docs/target/doc/* doc/
 ```
 
 Then you can launch tests by running:
 
 ```bash
-> node server-src/tester.js --test-folder ui-tests --generate-images --failure-folder failures/ --doc-path test-docs/target/doc/test_docs/
+> node server-src/tester.js --test-folder ui-tests --generate-images --failure-folder failures/ --doc-path doc/lib
 ```
 
 If you added new tests and you want to generate images for it:
 
 ```bash
-> node server-src/tester.js --test-folder ui-tests --generate-images --failure-folder failures/ --doc-path test-docs/target/doc/test_docs/ --generate-images
+> node server-src/tester.js --test-folder ui-tests --generate-images --failure-folder failures/ --doc-path test-docs/doc/lib --generate-images
 ```
 
 If you want the list of the available commands, just run:
