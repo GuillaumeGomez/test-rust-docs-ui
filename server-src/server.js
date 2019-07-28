@@ -170,12 +170,53 @@ async function get_status(response, request, server) {
 <body>
     <header>
         ${make_link(REPOSITORY_URL, '<img src="/assets/github.png">', true, 'repository')}
+        ${make_link('/failures', 'Failures', null, 'log-in button')}
         <div>rustdoc UI tests</div>${github_part}
     </header>
     <div class="content">${error}
         <div class="running">There is currently ${RUNNING_TESTS.length} ${RUNNING_TESTS.length > 1 ? 'tests running: (' + RUNNING_TESTS.map(make_link_from_url).join(', ') + ').' : 'test running.'}</div>
         <div class="title">List of last tests results</div>
         <div class="results">${lines.reverse().join('')}</div>
+    </div>
+</body>
+</html>`);
+    response.end();
+}
+
+function get_failures(response, request, server) {
+    var content = "";
+
+    fs.readdirSync(config.FAILURES_FOLDER).forEach(function(folder) {
+        var fullPath = utils.addSlash(config.FAILURES_FOLDER) + folder;
+        if (fs.lstatSync(fullPath).isDirectory()) {
+            var currentDir = "";
+            fs.readdirSync(fullPath).forEach(function(file) {
+                if (file.endsWith('png')) {
+                    currentDir += `<img src='/failures/${folder}/${file}'>`;
+                }
+            });
+            if (currentDir.length !== 0) {
+                content += `<div class="failures"><h2>${folder}</h2><details>${currentDir}</details></div>`;
+            }
+        }
+    });
+    if (content.length === 0) {
+        content = "No failures";
+    }
+    response.write(`<html>
+<head>
+    <title>rustdoc UI tests</title>${FAVICON_DATA === null ? "" : '<link rel="icon" type="image/png" sizes="32x32" href="/favicon.ico">'}
+    <script>${mstatus.get_status_js()}</script>
+    <style type="text/css">${mstatus.get_status_css()}</style>
+</head>
+<body>
+    <header>
+        ${make_link(REPOSITORY_URL, '<img src="/assets/github.png">', true, 'repository')}
+        <div>rustdoc UI tests</div>${github_part}
+        ${make_link('/', 'Home', null, 'log-in button')}
+    </header>
+    <div class="content">
+        ${content}
     </div>
 </body>
 </html>`);
@@ -258,8 +299,23 @@ function restart(response, request, server) {
 }
 
 function unknown_url(response, request) {
-    response.statusCode = 404;
-    response.end('Unknown URL: ' + request.url);
+    if (request.url.pathname.startsWith('/failures/')) {
+        content = utils.readFile(config.FAVICON_FILE, null, (error, data) => {
+            if (error) {
+                add_error(`failed to get file: ${error}`);
+                response.statusCode = 500;
+                response.end();
+            } else {
+                response.statusCode = 200
+                response.setHeader('Content-Type', 'image/png');
+                response.write(data);
+                response.end();
+            }
+        });
+    } else {
+        response.statusCode = 404;
+        response.end('Unknown URL: ' + request.url);
+    }
 }
 
 function get_favicon(response, request) {
@@ -803,6 +859,7 @@ function start_server(argv) {
         '/restart': check_restart,
         '/update': check_update,
         '/favicon.ico': get_favicon,
+        '/failures': get_failures,
         '/': parseData,
         '': parseData,
     };
