@@ -68,9 +68,9 @@ function installRustdoc(id) {
     return true;
 }
 
-function uninstallRustdoc(id) {
+function uninstallRustdoc(cargo_bin_path, id) {
     try {
-        execFileSync("rustup", ["uninstall", id]);
+        execFileSync(`${cargo_bin_path}rustup`, ["uninstall", id]);
     } catch(err) {
         add_error(`Cannot uninstall rustdoc from "${id}": ${err}`);
     }

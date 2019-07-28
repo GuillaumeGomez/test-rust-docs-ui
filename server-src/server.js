@@ -24,6 +24,7 @@ var GITHUB_WEBHOOK_SECRET_PATH = null;
 var GITHUB_CLIENT_ID = null;
 var GITHUB_CLIENT_SECRET = null;
 var COOKIE_KEYS = null;
+var CARGO_BIN_PATH = null;
 global.LOGS = [];
 global.REPOSITORY_URL = "https://github.com/GuillaumeGomez/test-rust-docs-ui";
 
@@ -389,7 +390,7 @@ function run_tests(id, url, msg_url, response) {
         );
         return;
     }
-    buildDoc(id, "rustdoc", (error, stdout, stderr, runId) => {
+    buildDoc(id, `${CARGO_BIN_PATH}rustdoc`, (error, stdout, stderr, runId) => {
         if (error) {
             const out = error.toString() + "\n=== STDERR ===\n" + stderr + "\n\n=== STDOUT ===\n" + stdout;
             add_log(`Doc build failed for ${url}: ${out}`);
@@ -397,7 +398,7 @@ function run_tests(id, url, msg_url, response) {
 
             // cleanup part
             DOC_UI_RUNS[url] = undefined;
-            utils.uninstallRustdoc(runId);
+            utils.uninstallRustdoc(CARGO_BIN_PATH, runId);
 
             // remove doc folder
             const ret = removeFolder(runId);
@@ -437,14 +438,14 @@ function run_tests(id, url, msg_url, response) {
 
             // cleanup part
             DOC_UI_RUNS[url] = undefined;
-            utils.uninstallRustdoc(runId);
+            utils.uninstallRustdoc(CARGO_BIN_PATH, runId);
         }).catch(err => {
             add_log(`Tests failed for ${url}: ${err}`);
             response.end("A test error occurred:\n```text\n" + err + "\n```");
 
             // cleanup part
             DOC_UI_RUNS[url] = undefined;
-            utils.uninstallRustdoc(runId);
+            utils.uninstallRustdoc(CARGO_BIN_PATH, runId);
 
             // remove doc folder
             const ret = removeFolder(runId);
@@ -738,9 +739,9 @@ function try_to_get_image(response, request) {
 }
 
 function start_server(argv) {
-    if (argv.length < 4) {
+    if (argv.length < 5) {
         console.error('node server.rs [github secret webhook path|--ignore-webhook-secret] ' +
-                      '               [github bot token|--ignore-bot-token]');
+                      '[github bot token|--ignore-bot-token] [cargo bin path]');
         process.exit(1);
     }
 
@@ -765,11 +766,16 @@ function start_server(argv) {
         add_warning('=> Disabling github send message...');
     } else {
         if (fs.existsSync(argv[3]) === false) {
-            console.log(`Invalid bot token path receveid: "${argv[3]}"`);
+            console.log(`Invalid bot token path received: "${argv[3]}"`);
             process.exit(3);
         }
         GITHUB_BOT_TOKEN = utils.readFile(argv[3]).replaceAll('\n', '');
         add_log('=> Found github bot token!');
+    }
+    CARGO_BIN_PATH = utils.addSlash(argv[4]);
+    if (fs.existsSync(CARGO_BIN_PATH) === false) {
+        console.log(`Invalid cargo bin path received: "${CARGO_BIN_PATH}"`);
+        process.exit(4);
     }
 
     load_cookie_keys();
