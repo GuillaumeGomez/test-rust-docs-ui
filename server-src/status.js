@@ -120,6 +120,12 @@ header > .repository {
     position: absolute;
     right: 5px;
     top: 5px;
+}
+
+.failures {
+    position: absolute;
+    left: 50px;
+    top: 4px;
 }`;
 }
 
