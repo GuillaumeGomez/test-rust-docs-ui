@@ -345,7 +345,7 @@ function check_signature(req, body) {
     return req.headers['x-hub-signature'] === calculatedSignature;
 }
 
-async function buildDoc(runId, rustdocPath) {
+async function buildDoc(runId, rustdocPath, callback) {
     var currentDir = utils.getCurrentDir();
 
     const outputPath = runId;
@@ -359,7 +359,9 @@ async function buildDoc(runId, rustdocPath) {
     args.push("test-docs/src/lib.rs");
     args.push("-o");
     args.push(outPath);
-    return await execFile(rustdocPath, args);
+    execFile(rustdocPath, args, (error, stdout, stderr) => {
+        callback(error, stdout, stderr, runId);
+    });
 }
 
 function run_tests(id, url, msg_url, response) {
@@ -375,7 +377,23 @@ function run_tests(id, url, msg_url, response) {
         );
         return;
     }
-    buildDoc(id, "rustdoc").then(runId => {
+    buildDoc(id, "rustdoc", (error, stdout, stderr, runId) => {
+        if (error) {
+            const out = "=== STDERR ===\n" + err.stderr + "\n\n=== STDOUT ===\n" + err.stdout;
+            add_log(`Doc build failed for ${url}: ${out}`);
+            response.end("Failed to build doc:\n```text\n" + out + "\n```");
+
+            // cleanup part
+            DOC_UI_RUNS[url] = undefined;
+            utils.uninstallRustdoc(runId);
+
+            // remove doc folder
+            const ret = removeFolder(runId);
+            if (ret.hasOwnProperty("error")) {
+                add_error(ret["error"]);
+            }
+            return;
+        }
         tester.runTests(["", "",
                          "--run-id", runId,
                          "--test-folder", "ui-tests/",
@@ -419,36 +437,10 @@ function run_tests(id, url, msg_url, response) {
             // remove doc folder
             const ret = removeFolder(runId);
             if (ret.hasOwnProperty("error")) {
-                logs = appendLog(logs, ret["error"]);
+                add_error(logs, ret["error"]);
             }
-        })
-    }).catch(err => {
-        const out = "=== STDERR ===\n" + err.stderr + "\n\n=== STDOUT ===\n" + err.stdout;
-        add_log(`Doc build failed for ${url}: ${out}`);
-        response.end("Failed to build doc:\n```text\n" + out + "\n```");
-
-        // cleanup part
-        DOC_UI_RUNS[url] = undefined;
-        utils.uninstallRustdoc(runId);
-
-        // remove doc folder
-        const ret = removeFolder(runId);
-        if (ret.hasOwnProperty("error")) {
-            logs = appendLog(logs, ret["error"]);
-        }
+        });
     });
-}
-
-async function get_top_commit(pull_number) {
-    let res = await axios.get(`${config.GH_API_URL}/repos/rust-lang/rust/pulls/${pull_number}/commits`).catch(e => {
-        add_log(`get_top_commit: failed to get commit list for PR ${pull_number}: ${e}`);
-    });
-    await res.data;
-    const commits = res.data;
-    if (commits.length !== undefined && commits.length > 0) {
-        return commits[commits.length - 1]['sha'];
-    }
-    return null;
 }
 
 // https://developer.github.com/v3/activity/events/types/#issuecommentevent
@@ -547,15 +539,14 @@ async function github_event(response, request, server, body) {
             // We wait for the rustdoc build to end before trying to get it.
             DOC_UI_RUNS[pr_url] = false;
             if (specific_commit === null) {
-                specific_commit = await get_top_commit(content['issue']['number']);
+                utils.send_github_message(msg_url, GITHUB_BOT_TOKEN,
+                                          "Waiting for `@bors try` to run or please add a commit hash");
             }
             if (specific_commit !== null) {
                 utils.send_github_message(msg_url, GITHUB_BOT_TOKEN, "Rustdoc-UI starting test...");
                 run_tests(specific_commit, pr_url, msg_url, response);
                 return;
             }
-            utils.send_github_message(msg_url, GITHUB_BOT_TOKEN,
-                                      "Waiting for `@bors try` to run or please add a commit hash");
         }
 
         response.end();
