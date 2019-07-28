@@ -439,18 +439,6 @@ function run_tests(id, url, msg_url, response) {
     });
 }
 
-async function get_top_commit(pull_number) {
-    let res = await axios.get(`${config.GH_API_URL}/repos/rust-lang/rust/pulls/${pull_number}/commits`).catch(e => {
-        add_log(`get_top_commit: failed to get commit list for PR ${pull_number}: ${e}`);
-    });
-    await res.data;
-    const commits = res.data;
-    if (commits.length !== undefined && commits.length > 0) {
-        return commits[commits.length - 1]['sha'];
-    }
-    return null;
-}
-
 // https://developer.github.com/v3/activity/events/types/#issuecommentevent
 async function github_event(response, request, server, body) {
     if (typeof body === 'undefined') {
@@ -547,15 +535,14 @@ async function github_event(response, request, server, body) {
             // We wait for the rustdoc build to end before trying to get it.
             DOC_UI_RUNS[pr_url] = false;
             if (specific_commit === null) {
-                specific_commit = await get_top_commit(content['issue']['number']);
+                utils.send_github_message(msg_url, GITHUB_BOT_TOKEN,
+                                          "Waiting for `@bors try` to run or please add a commit hash");
             }
             if (specific_commit !== null) {
                 utils.send_github_message(msg_url, GITHUB_BOT_TOKEN, "Rustdoc-UI starting test...");
                 run_tests(specific_commit, pr_url, msg_url, response);
                 return;
             }
-            utils.send_github_message(msg_url, GITHUB_BOT_TOKEN,
-                                      "Waiting for `@bors try` to run or please add a commit hash");
         }
 
         response.end();
