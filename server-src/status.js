@@ -178,6 +178,22 @@ function ask_update(elem) {
     xhr.withCredentials = true;
     xhr.send(null);
 }
+function ask_run_tests(elem) {
+    elem.style.pointerEvents = "none";
+    document.getElementById("info").innerHTML = "";
+    document.getElementById("info").style.display = "";
+    var xhr = new XMLHttpRequest();
+    xhr.onreadystatechange = function() {
+        if (this.readyState == 4 && this.status == 200) {
+            elem.style.pointerEvents = "";
+            document.getElementById("info").style.display = "block";
+            document.getElementById("info").innerHTML = clean_text(this.responseText);
+        }
+    };
+    xhr.open('GET', '/run-test', true);
+    xhr.withCredentials = true;
+    xhr.send(null);
+}
 function show_more() {
     if (this.innerText === "See more") {
         this.parentElement.style.maxHeight = "initial";

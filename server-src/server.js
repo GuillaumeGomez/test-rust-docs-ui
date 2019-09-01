@@ -64,6 +64,18 @@ async function check_restart(response, request) {
     response.end('Server will restart in 3 seconds');
 }
 
+async function run_test(response, request) {
+    let cookies = utils.get_cookies(request, response, COOKIE_KEYS);
+    let has_access = await check_rights(cookies.get('Login')).catch(() => {});
+
+    if (has_access !== true) {
+        response.end('Not enough rights to perform this action!');
+        return;
+    }
+    buildDoc('', 'rustdoc', innerRunTests);
+    response.end('Running tests... (come back a bit later to see the results)');
+}
+
 async function check_update(response, request) {
     let cookies = utils.get_cookies(request, response, COOKIE_KEYS);
     let has_access = await check_rights(cookies.get('Login')).catch(() => {});
@@ -111,6 +123,7 @@ async function get_admin(response, request) {
     <div class="content">
         <div class="title">Welcome to admin-land!</div>
         <div id="info"></div>
+        <div class="button" onclick="ask_run_tests(this)">Run tests</div>
         <div class="button" onclick="ask_update(this)">Update server</div>
         <div class="button" onclick="ask_restart(this)">Restart server</div>
         <div class="title">List of logs</div>
@@ -866,6 +879,7 @@ function start_server(argv) {
         '/update': check_update,
         '/favicon.ico': get_favicon,
         '/failures': get_failures,
+        '/run-test': run_test,
         '/': parseData,
         '': parseData,
     };
