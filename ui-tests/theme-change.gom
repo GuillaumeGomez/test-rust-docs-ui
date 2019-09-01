@@ -1,3 +1,0 @@
-goTo: file://{current-dir}/{doc-path}/index.html
-click: #theme-picker
-click: #theme-choices > button:first-child
