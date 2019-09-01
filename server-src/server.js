@@ -2,7 +2,7 @@ var http = require('http');
 var util = require('util');
 var spawnSync = require('child_process').spawnSync;
 var config = require('./config.js');
-var tester = require('./tester.js');
+var tester = require('browser-ui-test');
 const execFileSync = require('child_process').execFileSync;
 const execFile = require('child_process').execFile;
 const utils = require('./utils.js');
@@ -14,6 +14,7 @@ const m_url = require('url');
 const add_log = utils.add_log;
 const add_warning = utils.add_warning;
 const add_error = utils.add_error;
+const path = require('path');
 
 var DOC_UI_RUNS = {};
 var TESTS_RESULTS = [];
@@ -433,6 +434,73 @@ async function buildDoc(runId, rustdocPath, callback) {
     });
 }
 
+function innerRunTests(error, stdout, stderr, runId) {
+    if (error) {
+        const out = error.toString() + "\n=== STDERR ===\n" + stderr + "\n\n=== STDOUT ===\n" + stdout;
+        add_log(`Doc build failed for ${url}: ${out}`);
+        response.end("Failed to build doc:\n```text\n" + out + "\n```");
+
+        // cleanup part
+        DOC_UI_RUNS[url] = undefined;
+        utils.uninstallRustdoc(CARGO_BIN_PATH, runId);
+
+        // remove doc folder
+        const ret = removeFolder(runId);
+        if (ret.hasOwnProperty("error")) {
+            add_error(ret["error"]);
+        }
+        return;
+    }
+    const options = new tester.Options();
+    options.parseArguments(["--run-id", runId,
+                            "--test-folder", "ui-tests/",
+                            "--failure-folder", config.FAILURES_FOLDER,
+                            "--show-text",
+                            "--variable", "DOC_PATH", utils.addSlash(runId) + "lib/"]);
+    tester.runTests(options).then(x => {
+        let [output, errors] = x;
+        response.statusCode = 200;
+        if (errors > 0) {
+            let failure = "failure";
+            if (errors > 1) {
+                failure = "failures";
+            }
+            add_log(`Tests failed for ${url}: ${output}`);
+            response.end("Rustdoc-UI tests failed (" + errors + " " + failure + ")...");
+            utils.send_github_message(msg_url, GITHUB_BOT_TOKEN,
+                                      "Rustdoc-UI tests failed \"successfully\"!\n\n<details>" +
+                                      "<summary><i>Click to expand the log.</i></summary>\n\n" +
+                                      "```plain\n" + output + "\n```\n</details>");
+        } else {
+            add_log(`Tests ended successfully for ${url}`);
+            response.end("Rustdoc-UI tests passed!");
+            utils.send_github_message(msg_url, GITHUB_BOT_TOKEN,
+                                      "Rustdoc-UI tests ended successfully (and I know that " +
+                                      "through (not so dark) magic)!\n\n<details><summary><i>" +
+                                      "Click to expand the log.</i></summary>\n\n```plain\n" +
+                                      output + "\n```\n</details>");
+        }
+        add_test_results(output, url, errors);
+
+        // cleanup part
+        DOC_UI_RUNS[url] = undefined;
+        utils.uninstallRustdoc(CARGO_BIN_PATH, runId);
+    }).catch(err => {
+        add_log(`Tests failed for ${url}: ${err}`);
+        response.end("A test error occurred:\n```text\n" + err + "\n```");
+
+        // cleanup part
+        DOC_UI_RUNS[url] = undefined;
+        utils.uninstallRustdoc(CARGO_BIN_PATH, runId);
+
+        // remove doc folder
+        const ret = removeFolder(runId);
+        if (ret.hasOwnProperty("error")) {
+            add_error(logs, ret["error"]);
+        }
+    });
+}
+
 function run_tests(id, url, msg_url, response) {
     add_log(`Starting tests for ${url}`);
     let ret = utils.installRustdoc(id);
@@ -446,70 +514,8 @@ function run_tests(id, url, msg_url, response) {
         );
         return;
     }
-    buildDoc(id, `${CARGO_BIN_PATH}rustdoc`, (error, stdout, stderr, runId) => {
-        if (error) {
-            const out = error.toString() + "\n=== STDERR ===\n" + stderr + "\n\n=== STDOUT ===\n" + stdout;
-            add_log(`Doc build failed for ${url}: ${out}`);
-            response.end("Failed to build doc:\n```text\n" + out + "\n```");
-
-            // cleanup part
-            DOC_UI_RUNS[url] = undefined;
-            utils.uninstallRustdoc(CARGO_BIN_PATH, runId);
-
-            // remove doc folder
-            const ret = removeFolder(runId);
-            if (ret.hasOwnProperty("error")) {
-                add_error(ret["error"]);
-            }
-            return;
-        }
-        tester.runTests(["", "",
-                         "--run-id", runId,
-                         "--test-folder", "ui-tests/",
-                         "--failure-folder", config.FAILURES_FOLDER,
-                         "--doc-path", utils.addSlash(runId) + "lib/"]).then(x => {
-            let [output, errors] = x;
-            response.statusCode = 200;
-            if (errors > 0) {
-                let failure = "failure";
-                if (errors > 1) {
-                    failure = "failures";
-                }
-                add_log(`Tests failed for ${url}: ${output}`);
-                response.end("Rustdoc-UI tests failed (" + errors + " " + failure + ")...");
-                utils.send_github_message(msg_url, GITHUB_BOT_TOKEN,
-                                          "Rustdoc-UI tests failed \"successfully\"!\n\n<details>" +
-                                          "<summary><i>Click to expand the log.</i></summary>\n\n" +
-                                          "```plain\n" + output + "\n```\n</details>");
-            } else {
-                add_log(`Tests ended successfully for ${url}`);
-                response.end("Rustdoc-UI tests passed!");
-                utils.send_github_message(msg_url, GITHUB_BOT_TOKEN,
-                                          "Rustdoc-UI tests ended successfully (and I know that " +
-                                          "through (not so dark) magic)!\n\n<details><summary><i>" +
-                                          "Click to expand the log.</i></summary>\n\n```plain\n" +
-                                          output + "\n```\n</details>");
-            }
-            add_test_results(output, url, errors);
-
-            // cleanup part
-            DOC_UI_RUNS[url] = undefined;
-            utils.uninstallRustdoc(CARGO_BIN_PATH, runId);
-        }).catch(err => {
-            add_log(`Tests failed for ${url}: ${err}`);
-            response.end("A test error occurred:\n```text\n" + err + "\n```");
-
-            // cleanup part
-            DOC_UI_RUNS[url] = undefined;
-            utils.uninstallRustdoc(CARGO_BIN_PATH, runId);
-
-            // remove doc folder
-            const ret = removeFolder(runId);
-            if (ret.hasOwnProperty("error")) {
-                add_error(logs, ret["error"]);
-            }
-        });
-    });
+    const rustdocPath = path.join(CARGO_BIN_PATH !== null ? CARGO_BIN_PATH : '', 'rustdoc');
+    buildDoc(id, rustdocPath, innerRunTests);
 }
 
 // https://developer.github.com/v3/activity/events/types/#issuecommentevent

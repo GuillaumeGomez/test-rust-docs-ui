@@ -1,3 +1,0 @@
-goTo: file://{current-dir}/{doc-path}/index.html
-click: #functions
-goTo: ./struct.Foo.html

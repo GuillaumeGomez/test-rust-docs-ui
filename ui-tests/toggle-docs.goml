@@ -1,0 +1,2 @@
+goto: file://|CURRENT_DIR|/|DOC_PATH|/index.html
+click: "#toggle-all-docs"

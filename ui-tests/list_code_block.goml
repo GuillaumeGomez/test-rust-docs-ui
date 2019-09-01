@@ -1,0 +1,2 @@
+goto: file://|CURRENT_DIR|/|DOC_PATH|/index.html
+goto: ./fn.check_list_code_block.html
