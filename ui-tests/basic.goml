@@ -1,3 +1,3 @@
-goto: file://|CURRENT_DIR|/|DOC_PATH|/index.html
+goto: file://|DOC_PATH|/index.html
 click: "#functions"
 goto: ./struct.Foo.html
