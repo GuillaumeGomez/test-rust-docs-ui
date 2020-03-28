@@ -1,4 +1,4 @@
-goto: file://|CURRENT_DIR|/|DOC_PATH|/index.html
+goto: file://|DOC_PATH|/index.html
 size: (600, 600)
 click: ".srclink"
 click: "#sidebar-toggle"
