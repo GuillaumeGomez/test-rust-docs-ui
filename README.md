@@ -11,7 +11,8 @@ The `.gom` contains the instructions that the browser will execute. You can see 
 We now prefer to run those tests through docker based on this [docker hub image](https://hub.docker.com/repository/docker/gomezguillaume/browser-ui-test/general). The list of the available versions is [here](https://hub.docker.com/r/gomezguillaume/browser-ui-test/tags). Take the latest if you don't care or a specific day if you're looking for a specific one.
 
 ```bash
-$ cd test-docs && cargo doc
+# First we need to generate the documentation with the latest rustdoc version
+$ cd test-docs && cargo doc && cd ..
 # latest can be replaced with 2020-03-28 for example
 $ docker pull gomezguillaume/browser-ui-test:latest
 $ docker run \
