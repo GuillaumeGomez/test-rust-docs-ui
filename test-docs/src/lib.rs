@@ -11,7 +11,7 @@ use std::fmt;
 ///
 /// A failing to compile one:
 ///
-/// ```compile-fail
+/// ```compile_fail
 /// println!("where did my argument {} go? :'(");
 /// ```
 ///
