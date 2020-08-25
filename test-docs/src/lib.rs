@@ -1,6 +1,8 @@
 //! The point of this crate is to be able to have enough different "kinds" of
 //! documentation generated so we can test each different features.
 
+#![crate_name = "test_docs"]
+
 use std::fmt;
 
 /// Basic function with some code examples:
